@@ -395,7 +395,7 @@
 
 const DATA_PATHS = { US: './data/us.json', TR: './data/tr.json' };
 let LOADED_DATA = { US: null, TR: null };
-let DATA_MODE = 'live'; // 'live' or 'demo'
+let DATA_MODE = { US: 'live', TR: 'live' }; // per-market — one market's failure shouldn't taint the other
 
 // Minimal embedded demo data for offline/preview use
 const DEMO_DATA = {
@@ -489,7 +489,7 @@ async function loadMarketData(market) {
     return data;
   } catch (e) {
     console.warn(`Falling back to demo data for ${market}:`, e.message);
-    DATA_MODE = 'demo';
+    DATA_MODE[market] = 'demo';
     LOADED_DATA[market] = DEMO_DATA[market];
     return LOADED_DATA[market];
   }
@@ -516,7 +516,7 @@ function updateStatusUI() {
     return;
   }
 
-  if (DATA_MODE === 'live' && data.last_updated !== 'demo') {
+  if (DATA_MODE[state.market] === 'live' && data.last_updated !== 'demo') {
     statusEl.innerHTML = '<span class="live-dot"></span>Live data';
     updatedEl.textContent = `Updated: ${data.last_updated}`;
     bannerEl.innerHTML = `<div class="data-banner"><span>Source: ${data.source}</span><span>${data.buckets.length} series · last refresh ${data.last_updated}</span></div>`;
