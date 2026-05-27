@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FX Exposure Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;700&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --ink: #0f0f0e;
+    --paper: #f4f1ea;
+    --paper-2: #ebe6da;
+    --rule: #2a2724;
+    --accent: #b8341e;
+    --accent-soft: #d4a373;
+    --positive: #1f5f3f;
+    --positive-soft: #6ba888;
+    --blue: #2d5f8a;
+    --muted: #6b6660;
+    --grid: rgba(15, 15, 14, 0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter Tight', sans-serif; background: var(--paper); color: var(--ink); line-height: 1.5; min-height: 100vh; }
+
+  .masthead { border-bottom: 2px solid var(--ink); padding: 1.5rem 2rem 1rem; display: flex; justify-content: space-between; align-items: flex-end; gap: 2rem; }
+  .masthead-left { display: flex; flex-direction: column; gap: 0.25rem; }
+  .edition { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--muted); }
+  .masthead-title { font-family: 'Fraunces', serif; font-weight: 600; font-size: 2.6rem; line-height: 1; letter-spacing: -0.02em; }
+  .masthead-title em { font-style: italic; font-weight: 400; color: var(--accent); }
+  .masthead-right { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; text-align: right; color: var(--muted); line-height: 1.8; }
+  .masthead-right .live-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--positive); margin-right: 6px; animation: pulse 2s infinite; }
+  .masthead-right .live-dot.demo { background: var(--accent); }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .nav-strip { background: var(--ink); color: var(--paper); padding: 0.4rem 2rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; display: flex; gap: 1rem; }
+  .nav-strip a { color: rgba(244,241,234,0.5); text-decoration: none; padding: 0.2rem 0; transition: color 0.15s; }
+  .nav-strip a:hover, .nav-strip a.active { color: var(--paper); }
+  .nav-strip a.active { border-bottom: 1px solid var(--accent); }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 2rem; display: grid; grid-template-columns: 380px 1fr; gap: 2rem; }
+  @media (max-width: 900px) { .container { grid-template-columns: 1fr; } .masthead-title { font-size: 1.8rem; } }
+
+  .panel { background: var(--paper); border: 1px solid var(--rule); padding: 1.5rem; }
+  .panel-title { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--ink); padding-bottom: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+  .panel-title .step { color: var(--accent); font-weight: 700; }
+
+  .control-group { margin-bottom: 1.25rem; }
+  .control-label { display: flex; justify-content: space-between; align-items: baseline; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 0.4rem; }
+  .control-label .label-text { color: var(--ink); }
+  select, input[type="month"], input[type="number"] { width: 100%; background: var(--paper-2); border: 1px solid var(--rule); padding: 0.6rem 0.75rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--ink); border-radius: 0; transition: background 0.15s; }
+  select:focus, input:focus { outline: none; background: var(--paper); border-color: var(--accent); }
+
+  .templates { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.75rem; }
+  .template-btn { background: transparent; border: 1px solid var(--rule); padding: 0.35rem 0.6rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; cursor: pointer; color: var(--ink); transition: all 0.15s; text-align: left; }
+  .template-btn:hover { background: var(--ink); color: var(--paper); }
+  .template-btn.active { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+
+  /* Exposure rows */
+  .exp-row { display: grid; grid-template-columns: 1fr 70px 28px; gap: 0.4rem; align-items: center; margin-bottom: 0.4rem; }
+  .exp-row select { padding: 0.45rem 0.5rem; font-size: 0.78rem; }
+  .exp-row input { text-align: right; padding: 0.45rem 0.5rem; font-size: 0.85rem; }
+  .exp-remove { background: transparent; border: 1px solid var(--rule); width: 28px; height: 30px; cursor: pointer; font-family: 'JetBrains Mono', monospace; color: var(--muted); transition: all 0.15s; }
+  .exp-remove:hover { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+  .add-row { width: 100%; background: transparent; border: 1px dashed var(--rule); padding: 0.5rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); cursor: pointer; margin-top: 0.4rem; transition: all 0.15s; }
+  .add-row:hover { color: var(--ink); border-color: var(--ink); border-style: solid; }
+  .weight-summary { display: flex; justify-content: space-between; align-items: baseline; margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px dotted var(--rule); font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; }
+  .weight-summary .total { font-weight: 700; }
+  .weight-summary .total.ok { color: var(--positive); }
+  .weight-summary .total.error { color: var(--accent); }
+
+  /* Section header inside exposure panel */
+  .sub-section-label { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink); margin-top: 1rem; margin-bottom: 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: baseline; }
+  .sub-section-label .pill-rev { color: var(--positive); }
+  .sub-section-label .pill-cost { color: var(--accent); }
+
+  /* Date controls */
+  .date-presets { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.75rem; }
+  .preset-btn { background: transparent; border: 1px solid var(--rule); padding: 0.35rem 0.6rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; cursor: pointer; color: var(--ink); transition: all 0.15s; }
+  .preset-btn:hover { background: var(--ink); color: var(--paper); }
+  .preset-btn.active { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+  .date-range-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+  .date-mini-label { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 0.25rem; }
+
+  /* Hero summary */
+  .hero-summary { background: var(--ink); color: var(--paper); padding: 2rem; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem; border: 1px solid var(--ink); }
+  @media (max-width: 900px) { .hero-summary { grid-template-columns: 1fr; gap: 1.5rem; } }
+  .hero-stat { display: flex; flex-direction: column; gap: 0.4rem; }
+  .hero-stat + .hero-stat { border-left: 1px solid rgba(244,241,234,0.15); padding-left: 2rem; }
+  @media (max-width: 900px) { .hero-stat + .hero-stat { border-left: none; border-top: 1px solid rgba(244,241,234,0.15); padding-left: 0; padding-top: 1.5rem; } }
+  .hero-stat-label { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--accent-soft); }
+  .hero-stat-value { font-family: 'Fraunces', serif; font-size: 2.6rem; font-weight: 500; line-height: 1.1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+  .hero-stat-value .unit { font-size: 1.1rem; color: var(--accent-soft); margin-left: 0.2rem; }
+  .hero-stat-context { font-family: 'Inter Tight', sans-serif; font-size: 0.85rem; color: rgba(244,241,234,0.7); }
+  .hero-stat-value.pos { color: var(--positive-soft); }
+  .hero-stat-value.neg { color: var(--accent-soft); }
+
+  /* Decomposition list */
+  .decomp-list { display: flex; flex-direction: column; gap: 0.6rem; }
+  .decomp-row { display: grid; grid-template-columns: 100px 1fr 90px; gap: 0.75rem; align-items: center; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
+  @media (max-width: 700px) { .decomp-row { grid-template-columns: 80px 1fr 80px; } }
+  .decomp-label { display: flex; gap: 0.3rem; align-items: center; }
+  .ccy-tag { font-weight: 700; font-size: 0.75rem; }
+  .decomp-bar-cell { position: relative; height: 22px; background: var(--paper-2); border: 1px solid var(--rule); }
+  .decomp-bar-center { position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: var(--rule); }
+  .decomp-bar-fill { position: absolute; top: 1px; bottom: 1px; transition: width 0.4s ease, left 0.4s ease; }
+  .decomp-bar-fill.pos { background: var(--positive); left: 50%; }
+  .decomp-bar-fill.neg { background: var(--accent); right: 50%; }
+  .decomp-value { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .decomp-value.pos { color: var(--positive); }
+  .decomp-value.neg { color: var(--accent); }
+
+  /* Stress scenario sliders */
+  .stress-row { display: grid; grid-template-columns: 80px 1fr 80px 90px; gap: 0.75rem; align-items: center; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; margin-bottom: 0.6rem; padding: 0.4rem 0; border-bottom: 1px dotted var(--grid); }
+  @media (max-width: 700px) { .stress-row { grid-template-columns: 70px 1fr 60px 80px; gap: 0.4rem; font-size: 0.72rem; } }
+  .stress-row input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .stress-shock { text-align: center; font-weight: 700; }
+  .stress-impact { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stress-impact.pos { color: var(--positive); }
+  .stress-impact.neg { color: var(--accent); }
+  .stress-reset { background: transparent; border: 1px solid var(--rule); padding: 0.4rem 0.8rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; cursor: pointer; color: var(--muted); margin-top: 0.5rem; transition: all 0.15s; }
+  .stress-reset:hover { color: var(--ink); border-color: var(--ink); }
+
+  /* Volatility table */
+  .vol-table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
+  .vol-table th, .vol-table td { padding: 0.55rem 0.5rem; text-align: right; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+  .vol-table th { text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.1em; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--rule); }
+  .vol-table th:first-child, .vol-table td:first-child { text-align: left; }
+  .vol-table tbody tr:hover { background: var(--paper-2); }
+  .vol-high { color: var(--accent); font-weight: 700; }
+  .vol-med { color: var(--accent-soft); font-weight: 700; }
+
+  /* Net exposure */
+  .net-list { display: flex; flex-direction: column; gap: 0.5rem; }
+  .net-row { display: grid; grid-template-columns: 80px 70px 70px 1fr 90px; gap: 0.75rem; align-items: center; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; padding: 0.4rem 0; }
+  @media (max-width: 700px) { .net-row { grid-template-columns: 60px 50px 50px 1fr 70px; gap: 0.4rem; font-size: 0.72rem; } }
+  .net-mini-label { color: var(--muted); font-size: 0.7rem; }
+  .net-rev { color: var(--positive); }
+  .net-cost { color: var(--accent); }
+  .net-bar-cell { position: relative; height: 18px; background: var(--paper-2); border: 1px solid var(--rule); }
+  .net-bar-center { position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: var(--rule); }
+  .net-bar-fill { position: absolute; top: 1px; bottom: 1px; transition: width 0.4s ease, left 0.4s ease; }
+  .net-bar-fill.long { background: var(--positive); left: 50%; }
+  .net-bar-fill.short { background: var(--accent); right: 50%; }
+  .net-value { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .net-value.long { color: var(--positive); }
+  .net-value.short { color: var(--accent); }
+  .net-header { display: grid; grid-template-columns: 80px 70px 70px 1fr 90px; gap: 0.75rem; font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); padding-bottom: 0.4rem; border-bottom: 1px solid var(--rule); margin-bottom: 0.5rem; }
+  @media (max-width: 700px) { .net-header { grid-template-columns: 60px 50px 50px 1fr 70px; gap: 0.4rem; } }
+  .net-header div:nth-child(4) { text-align: center; }
+  .net-header div:nth-child(5) { text-align: right; }
+
+  /* Toggle switch */
+  .toggle-switch { position: relative; display: inline-block; width: 38px; height: 20px; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: var(--paper-2); border: 1px solid var(--rule); transition: 0.2s; }
+  .toggle-slider:before { position: absolute; content: ""; height: 12px; width: 12px; left: 2px; bottom: 2px; background: var(--ink); transition: 0.2s; }
+  .toggle-switch input:checked + .toggle-slider { background: var(--accent); border-color: var(--accent); }
+  .toggle-switch input:checked + .toggle-slider:before { transform: translateX(18px); background: var(--paper); }
+
+  /* Period tags */
+  .period-tag { display: inline-block; padding: 0.1rem 0.4rem; font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; border: 1px solid currentColor; }
+  .period-tag.a { color: var(--accent); }
+  .period-tag.b { color: var(--blue); }
+  .period-tag.delta { color: var(--ink); }
+
+  .preset-btn-b { background: transparent; border: 1px solid var(--rule); padding: 0.35rem 0.6rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; cursor: pointer; color: var(--ink); transition: all 0.15s; }
+  .preset-btn-b:hover { background: var(--ink); color: var(--paper); }
+  .preset-btn-b.active { background: var(--blue); color: var(--paper); border-color: var(--blue); }
+
+  /* Compare panel */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+  @media (max-width: 700px) { .compare-grid { grid-template-columns: 1fr; gap: 0.75rem; } }
+  .compare-card { padding: 1rem; background: var(--paper-2); border-top: 3px solid var(--rule); display: flex; flex-direction: column; gap: 0.35rem; }
+  .compare-card.a { border-top-color: var(--accent); }
+  .compare-card.b { border-top-color: var(--blue); }
+  .compare-card.delta { border-top-color: var(--ink); background: var(--ink); color: var(--paper); }
+  .compare-card-tag { margin-bottom: 0.25rem; }
+  .compare-card.delta .period-tag { color: var(--accent-soft); }
+  .compare-card-range { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .compare-card.delta .compare-card-range { color: var(--accent-soft); }
+  .compare-card-value { font-family: 'Fraunces', serif; font-size: 2.2rem; font-weight: 500; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .compare-card-value .unit { font-size: 1rem; color: var(--muted); margin-left: 0.2rem; }
+  .compare-card.delta .compare-card-value .unit { color: var(--accent-soft); }
+  .compare-card-meta { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--muted); }
+  .compare-card.delta .compare-card-meta { color: rgba(244,241,234,0.6); }
+
+  .compare-table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 0.74rem; }
+  .compare-table th, .compare-table td { padding: 0.5rem 0.4rem; text-align: right; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+  .compare-table th { text-transform: uppercase; font-size: 0.6rem; letter-spacing: 0.1em; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--rule); }
+  .compare-table th:first-child, .compare-table td:first-child { text-align: left; }
+  .compare-table tbody tr:hover { background: var(--paper-2); }
+  .compare-table .delta-up { color: var(--accent); font-weight: 700; }
+  .compare-table .delta-down { color: var(--positive); font-weight: 700; }
+
+  /* Hedge simulator */
+  .hedge-header { display: grid; grid-template-columns: 60px 1fr 80px 1fr 80px 90px; gap: 0.5rem; font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); padding-bottom: 0.4rem; border-bottom: 1px solid var(--rule); margin-bottom: 0.5rem; }
+  @media (max-width: 700px) { .hedge-header { grid-template-columns: 50px 1fr 60px 1fr 60px 70px; gap: 0.3rem; } }
+  .hedge-row { display: grid; grid-template-columns: 60px 1fr 80px 1fr 80px 90px; gap: 0.5rem; align-items: center; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; padding: 0.5rem 0; border-bottom: 1px dotted var(--grid); }
+  @media (max-width: 700px) { .hedge-row { grid-template-columns: 50px 1fr 60px 1fr 60px 70px; gap: 0.3rem; font-size: 0.7rem; } }
+  .hedge-row input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .hedge-row input[type="range"].cost { accent-color: var(--blue); }
+  .hedge-val { text-align: center; font-weight: 700; }
+  .hedge-impact { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .hedge-impact.pos { color: var(--positive); }
+  .hedge-impact.neg { color: var(--accent); }
+
+  .chart-wrap { height: 260px; margin-top: 0.5rem; position: relative; }
+
+  .footer { border-top: 1px solid var(--rule); padding: 1.5rem 2rem; margin-top: 2rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+
+  .note { font-size: 0.75rem; color: var(--muted); line-height: 1.5; margin-top: 0.5rem; font-style: italic; }
+  .divider-rule { border: none; border-top: 1px solid var(--rule); margin: 1.25rem 0; }
+  .data-banner { background: var(--paper-2); border: 1px solid var(--rule); padding: 0.6rem 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+  .data-banner.demo { background: rgba(184,52,30,0.08); border-color: var(--accent); color: var(--accent); }
+  .data-banner.live { background: rgba(31,95,63,0.06); border-color: var(--positive); color: var(--positive); }
+
+  .main-col { display: flex; flex-direction: column; gap: 2rem; }
+
+  .right-content { display: flex; flex-direction: column; gap: 2rem; }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-left">
+    <div class="edition">VOL. I &nbsp;·&nbsp; COMMERCIAL FINANCE TOOLS &nbsp;·&nbsp; NO. 09</div>
+    <h1 class="masthead-title">FX <em>Exposure</em> Simulator</h1>
+  </div>
+  <div class="masthead-right">
+    <div id="dataStatus"><span class="live-dot demo"></span>Loading…</div>
+    <div id="lastUpdated">—</div>
+  </div>
+</header>
+
+<nav class="nav-strip">
+  <a href="./index.html">Pass-Through Calculator</a>
+  <a href="./pricing-power.html">Pricing Power Index</a>
+  <a href="#" class="active">FX Exposure Simulator</a>
+</nav>
+
+<div class="container">
+
+  <aside>
+    <div class="panel">
+      <div class="panel-title"><span><span class="step">01</span> &nbsp;Reporting Currency</span></div>
+      <select id="reportingCcy">
+        <option value="USD">USD · US Dollar</option>
+        <option value="EUR">EUR · Euro</option>
+        <option value="TRY">TRY · Turkish Lira</option>
+        <option value="GBP">GBP · British Pound</option>
+        <option value="JPY">JPY · Japanese Yen</option>
+      </select>
+      <p class="note">Currency your P&L is reported in. Everything else converts to this.</p>
+    </div>
+
+    <div class="panel" style="margin-top: 1.5rem;">
+      <div class="panel-title"><span><span class="step">02</span> &nbsp;Exposure Mix</span><span id="expCount">— / —</span></div>
+
+      <div class="control-label"><span class="label-text">Profile templates</span></div>
+      <div class="templates" id="templates"></div>
+
+      <hr class="divider-rule" />
+
+      <div class="sub-section-label"><span>Revenue mix</span><span class="pill-rev" id="revTotal">0%</span></div>
+      <div id="revList"></div>
+      <button class="add-row" id="addRev">+ Add revenue currency</button>
+
+      <div class="sub-section-label" style="margin-top: 1.5rem;"><span>Cost mix</span><span class="pill-cost" id="costTotal">0%</span></div>
+      <div id="costList"></div>
+      <button class="add-row" id="addCost">+ Add cost currency</button>
+
+      <hr class="divider-rule" />
+
+      <div class="control-group">
+        <div class="control-label"><span class="label-text">Annual revenue size</span></div>
+        <input type="number" id="revSize" value="100" min="0" step="1" />
+        <p class="note">In millions of reporting currency. Used for scenario impact in absolute terms.</p>
+      </div>
+
+      <div class="control-group">
+        <div class="control-label"><span class="label-text">Gross margin baseline</span><span id="gmDisplay">35%</span></div>
+        <input type="number" id="grossMargin" value="35" min="0" max="95" step="1" />
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top: 1.5rem;">
+      <div class="panel-title"><span><span class="step">03</span> &nbsp;Time Window</span><span id="rangeMonthsLabel">— months</span></div>
+
+      <div class="control-label" id="periodALabelWrap" style="display: none;"><span class="label-text"><span class="period-tag a">Period A</span></span><span></span></div>
+
+      <div class="date-presets" id="datePresets">
+        <button class="preset-btn" data-months="3">3M</button>
+        <button class="preset-btn" data-months="6">6M</button>
+        <button class="preset-btn active" data-months="12">12M (YoY)</button>
+        <button class="preset-btn" data-months="24">24M</button>
+        <button class="preset-btn" data-months="36">36M</button>
+      </div>
+      <div class="date-range-grid">
+        <div>
+          <div class="date-mini-label">From</div>
+          <input type="month" id="fromDate" />
+        </div>
+        <div>
+          <div class="date-mini-label">To</div>
+          <input type="month" id="toDate" />
+        </div>
+      </div>
+      <p class="note">Historical window for the "realized" panel. Stress scenarios are independent.</p>
+
+      <hr class="divider-rule" />
+
+      <div class="control-group" style="margin-bottom: 0.5rem;">
+        <div class="control-label">
+          <span class="label-text">Compare two periods</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="compareToggle" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div id="periodBSection" style="display: none;">
+        <div class="control-label"><span class="label-text"><span class="period-tag b">Period B</span></span><span id="rangeMonthsLabelB">— months</span></div>
+        <div class="date-presets" id="datePresetsB">
+          <button class="preset-btn-b" data-months="3">3M</button>
+          <button class="preset-btn-b" data-months="6">6M</button>
+          <button class="preset-btn-b active" data-months="12">12M (prior)</button>
+          <button class="preset-btn-b" data-months="24">24M</button>
+        </div>
+        <div class="date-range-grid">
+          <div>
+            <div class="date-mini-label">From</div>
+            <input type="month" id="fromDateB" />
+          </div>
+          <div>
+            <div class="date-mini-label">To</div>
+            <input type="month" id="toDateB" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-col">
+
+    <div id="dataBanner"></div>
+
+    <div class="hero-summary">
+      <div class="hero-stat">
+        <div class="hero-stat-label">Realized FX impact on revenue</div>
+        <div class="hero-stat-value" id="heroRev">—<span class="unit">%</span></div>
+        <div class="hero-stat-context" id="heroRevCtx">in reporting currency</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-label">Realized FX impact on costs</div>
+        <div class="hero-stat-value" id="heroCost">—<span class="unit">%</span></div>
+        <div class="hero-stat-context" id="heroCostCtx">in reporting currency</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-label">Net margin impact</div>
+        <div class="hero-stat-value" id="heroMargin">—<span class="unit">bps</span></div>
+        <div class="hero-stat-context" id="heroMarginCtx">on gross margin</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span>Realized Decomposition</span><span>By currency · historical</span></div>
+      <div class="decomp-list" id="decompList"></div>
+      <p class="note">For each currency in your mix: net exposure weight × actual FX move over the window. Positive = tailwind to margin, negative = headwind.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span>Net Exposure</span><span>Where you're actually exposed</span></div>
+      <p class="note" style="margin-top: 0; margin-bottom: 0.75rem;">A company with 50% EUR revenue and 50% EUR costs has <strong>zero</strong> net EUR exposure — the moves cancel. Net exposure shows what currencies actually move your margin. Long = revenue outweighs costs (you benefit when that currency strengthens). Short = costs outweigh revenue (you lose when that currency strengthens).</p>
+      <div class="net-list" id="netList"></div>
+    </div>
+
+    <div id="comparePanel" class="panel" style="display: none;">
+      <div class="panel-title"><span>Period A vs Period B</span><span id="compareSummary">—</span></div>
+      <div class="compare-grid">
+        <div class="compare-card a">
+          <div class="compare-card-tag"><span class="period-tag a">Period A</span></div>
+          <div class="compare-card-range" id="compareRangeA">—</div>
+          <div class="compare-card-value" id="compareMarginA">—<span class="unit">bps</span></div>
+          <div class="compare-card-meta">net margin impact</div>
+        </div>
+        <div class="compare-card b">
+          <div class="compare-card-tag"><span class="period-tag b">Period B</span></div>
+          <div class="compare-card-range" id="compareRangeB">—</div>
+          <div class="compare-card-value" id="compareMarginB">—<span class="unit">bps</span></div>
+          <div class="compare-card-meta">net margin impact</div>
+        </div>
+        <div class="compare-card delta">
+          <div class="compare-card-tag"><span class="period-tag delta">Δ Delta</span></div>
+          <div class="compare-card-range" id="compareDeltaDir">—</div>
+          <div class="compare-card-value" id="compareDeltaValue">—<span class="unit">bps</span></div>
+          <div class="compare-card-meta" id="compareDeltaMeta">A vs B</div>
+        </div>
+      </div>
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>Currency</th>
+            <th>Move A</th>
+            <th>Move B</th>
+            <th>Impact A</th>
+            <th>Impact B</th>
+            <th>Δ Impact</th>
+          </tr>
+        </thead>
+        <tbody id="compareTableBody"></tbody>
+      </table>
+      <p class="note">Δ Impact is the change in that currency's margin contribution between periods, in percentage points. Positive = FX pressure on that currency intensified in Period A. Useful for spotting where FX risk is accelerating.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span>Stress Scenarios</span><span>Forward-looking · assumption-based</span></div>
+      <p class="note" style="margin-bottom: 0.75rem; margin-top: 0;">Shock each currency by a chosen % from today. The tool computes the implied impact on revenue, costs, and margin. This is a <strong>what-if calculator</strong>, not a forecast.</p>
+      <div id="stressList"></div>
+      <button class="stress-reset" id="stressReset">Reset all shocks</button>
+      <div class="hero-summary" style="margin-top: 1rem; padding: 1.25rem;">
+        <div class="hero-stat">
+          <div class="hero-stat-label">Scenario revenue impact</div>
+          <div class="hero-stat-value" id="scenRev" style="font-size: 1.8rem;">—<span class="unit">%</span></div>
+          <div class="hero-stat-context" id="scenRevAbs">—</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-label">Scenario cost impact</div>
+          <div class="hero-stat-value" id="scenCost" style="font-size: 1.8rem;">—<span class="unit">%</span></div>
+          <div class="hero-stat-context" id="scenCostAbs">—</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-label">Scenario margin impact</div>
+          <div class="hero-stat-value" id="scenMargin" style="font-size: 1.8rem;">—<span class="unit">bps</span></div>
+          <div class="hero-stat-context" id="scenMarginAbs">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span>Volatility Profile</span><span>Rolling annualized · per currency pair</span></div>
+      <table class="vol-table">
+        <thead>
+          <tr>
+            <th>Pair</th>
+            <th>Latest rate</th>
+            <th>Window move</th>
+            <th>Annualized vol</th>
+            <th>Hedge hint</th>
+          </tr>
+        </thead>
+        <tbody id="volTableBody"></tbody>
+      </table>
+      <p class="note">Annualized volatility = stdev of monthly returns × √12. Hedge hint flags pairs where vol exceeds ~10% and net exposure is non-trivial. Not financial advice.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span>Hedge Simulator</span><span>Backtested · with cost</span></div>
+      <p class="note" style="margin-top: 0; margin-bottom: 0.75rem;">For each currency: set a hedge ratio (0-100%) and a hedge cost (forward points, annualized). The tool computes what your historical margin impact would have been with that hedge in place — net of the hedge cost. Goal: reduce volatility, even if the average impact is similar.</p>
+      <div id="hedgeList"></div>
+      <div class="hero-summary" style="margin-top: 1rem; padding: 1.25rem;">
+        <div class="hero-stat">
+          <div class="hero-stat-label">Unhedged margin impact</div>
+          <div class="hero-stat-value" id="hedgeUnhedged" style="font-size: 1.6rem;">—<span class="unit">bps</span></div>
+          <div class="hero-stat-context">over historical window</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-label">Hedged margin impact</div>
+          <div class="hero-stat-value" id="hedgeHedged" style="font-size: 1.6rem;">—<span class="unit">bps</span></div>
+          <div class="hero-stat-context" id="hedgeHedgedCtx">net of hedge cost</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-label">Volatility reduction</div>
+          <div class="hero-stat-value" id="hedgeVolRed" style="font-size: 1.6rem;">—<span class="unit">%</span></div>
+          <div class="hero-stat-context" id="hedgeVolRedCtx">in monthly margin variance</div>
+        </div>
+      </div>
+      <p class="note">Hedge math: each month, the unhedged position takes the full FX move; the hedged portion is locked at the start-of-window rate minus the annualized hedge cost (pro-rated monthly). Forward points typical range: 0.5-2% for major pairs, 5-15% for TRY. Not financial advice.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span>Reporting Currency vs. Exposed Currencies</span><span id="chartLabel">12M index</span></div>
+      <div class="chart-wrap"><canvas id="fxChart"></canvas></div>
+      <p class="note">Each line shows the price of one foreign currency in terms of your reporting currency, indexed to 100 at the start of the window. Lines moving up = that currency appreciating vs. yours.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span>How to Read This</span></div>
+      <div style="font-size: 0.88rem; line-height: 1.6;">
+        <p style="margin-bottom: 0.6rem;"><strong>The "Realized" panel uses real exchange rate history</strong> to show what FX moves actually did to your margin over the chosen window, given your stated exposure.</p>
+        <p style="margin-bottom: 0.6rem;"><strong>The "Stress" panel is forward-looking</strong> but does not predict FX. You shock each currency by a chosen %, and the tool runs the math on your exposure. No model, no forecast.</p>
+        <p style="margin-bottom: 0.6rem;"><strong>The "Volatility" panel measures historical risk</strong> — not future risk. A currency that's been quiet for 12 months can still move sharply tomorrow.</p>
+        <p><strong>This tool does not give financial advice.</strong> Hedge hints are mechanical thresholds, not recommendations. Talk to your treasury team or bank before any actual hedging.</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<footer class="footer">
+  <div>FX Exposure Simulator · v0.1 prototype</div>
+  <div>Sources (production): frankfurter.app (ECB) · FRED · TCMB EVDS</div>
+</footer>
+
+<script>
+// ============================================================
+// CURRENCIES & DEMO FX DATA
+// 36 months of monthly closing rates indexed to USD = 1
+// (synthetic but calibrated to plausible recent patterns)
+// ============================================================
+const CURRENCIES = ['USD', 'EUR', 'TRY', 'GBP', 'JPY', 'CNY', 'INR', 'MXN', 'BRL'];
+
+// Helper: build a 37-point series from a start value and monthly % changes
+function genFx(start, monthlyPcts) {
+  const out = [start];
+  for (const p of monthlyPcts) out.push(out[out.length - 1] * (1 + p / 100));
+  return out;
+}
+
+// DEMO_FX[ccy] is the value of 1 unit of that ccy in USD, monthly
+// (USD always = 1 by definition)
+const DEMO_FX = {
+  USD: Array(37).fill(1.0),
+  EUR: genFx(1.085, [0.4, -0.3, 0.5, -0.2, 0.3, -0.5, 0.2, -0.4, 0.6, -0.3, 0.4, -0.2, 0.3, -0.4, 0.5, -0.3, 0.4, -0.6, 0.3, -0.2, 0.5, -0.4, 0.3, -0.3, 0.4, -0.2, 0.3, -0.5, 0.4, -0.3, 0.5, -0.4, 0.3, -0.2, 0.4, -0.3]),
+  TRY: genFx(0.032, [-2.5, -3.0, -2.2, -3.5, -2.8, -3.2, -2.5, -2.8, -3.3, -2.4, -2.9, -3.1, -2.6, -2.8, -3.0, -2.4, -2.7, -3.2, -2.5, -2.8, -3.0, -2.4, -2.7, -3.1, -2.5, -2.6, -2.9, -2.4, -2.6, -2.8, -2.3, -2.5, -2.7, -2.2, -2.4, -2.6]),
+  GBP: genFx(1.265, [0.3, -0.4, 0.6, -0.3, 0.4, -0.5, 0.3, -0.2, 0.5, -0.4, 0.3, -0.3, 0.4, -0.5, 0.6, -0.3, 0.4, -0.2, 0.3, -0.4, 0.5, -0.3, 0.4, -0.2, 0.3, -0.4, 0.5, -0.3, 0.4, -0.5, 0.3, -0.2, 0.4, -0.3, 0.5, -0.4]),
+  JPY: genFx(0.0067, [-0.8, -1.2, -0.5, 0.3, -0.6, -0.9, 0.4, -0.5, -0.8, 0.3, -0.6, -1.0, 0.2, -0.5, -0.8, 0.4, -0.6, -0.9, 0.3, -0.5, -0.7, 0.4, -0.6, -0.8, 0.3, -0.5, -0.7, 0.4, -0.6, -0.8, 0.3, -0.4, -0.6, 0.3, -0.5, -0.7]),
+  CNY: genFx(0.138, [-0.2, -0.3, 0.1, -0.2, -0.3, 0.2, -0.3, -0.2, 0.1, -0.3, -0.2, 0.1, -0.2, -0.3, 0.2, -0.3, -0.2, 0.1, -0.2, -0.3, 0.2, -0.3, -0.2, 0.1, -0.2, -0.3, 0.2, -0.3, -0.2, 0.1, -0.2, -0.3, 0.2, -0.2, -0.3, 0.1]),
+  INR: genFx(0.0119, [-0.3, -0.4, -0.2, -0.3, -0.4, -0.2, -0.3, -0.4, -0.2, -0.3, -0.4, -0.2, -0.3, -0.4, -0.2, -0.3, -0.4, -0.2, -0.3, -0.4, -0.2, -0.3, -0.4, -0.2, -0.3, -0.4, -0.2, -0.3, -0.4, -0.2, -0.3, -0.4, -0.2, -0.3, -0.4, -0.2]),
+  MXN: genFx(0.055, [0.5, -0.3, 0.6, -0.4, 0.5, -0.2, 0.4, -0.5, 0.6, -0.3, 0.4, -0.2, 0.5, -0.4, 0.6, -0.3, 0.4, -0.5, 0.5, -0.3, 0.6, -0.4, 0.5, -0.3, 0.4, -0.5, 0.6, -0.3, 0.4, -0.2, 0.5, -0.4, 0.6, -0.3, 0.4, -0.5]),
+  BRL: genFx(0.195, [-0.4, -0.8, 0.3, -0.6, -0.7, 0.4, -0.5, -0.8, 0.3, -0.6, -0.7, 0.4, -0.5, -0.7, 0.3, -0.6, -0.7, 0.4, -0.5, -0.6, 0.3, -0.6, -0.6, 0.4, -0.5, -0.7, 0.3, -0.6, -0.6, 0.4, -0.5, -0.6, 0.3, -0.5, -0.6, 0.4]),
+};
+
+// ============================================================
+// TEMPLATES
+// ============================================================
+const TEMPLATES = [
+  { name: 'Turkish exporter to EU', reporting: 'TRY',
+    revenue: [['EUR', 60], ['USD', 25], ['TRY', 15]],
+    costs:   [['TRY', 70], ['EUR', 15], ['USD', 15]] },
+  { name: 'US tech with India dev', reporting: 'USD',
+    revenue: [['USD', 80], ['EUR', 15], ['GBP', 5]],
+    costs:   [['USD', 55], ['INR', 35], ['EUR', 10]] },
+  { name: 'European CPG global', reporting: 'EUR',
+    revenue: [['EUR', 45], ['USD', 25], ['GBP', 10], ['CNY', 10], ['MXN', 5], ['BRL', 5]],
+    costs:   [['EUR', 50], ['USD', 30], ['CNY', 12], ['MXN', 8]] },
+  { name: 'Turkish auto supplier', reporting: 'TRY',
+    revenue: [['EUR', 55], ['TRY', 30], ['USD', 15]],
+    costs:   [['TRY', 65], ['EUR', 20], ['USD', 15]] },
+  { name: 'US importer (China)', reporting: 'USD',
+    revenue: [['USD', 100]],
+    costs:   [['USD', 50], ['CNY', 45], ['EUR', 5]] },
+  { name: 'Japanese exporter', reporting: 'JPY',
+    revenue: [['USD', 50], ['JPY', 25], ['EUR', 15], ['CNY', 10]],
+    costs:   [['JPY', 75], ['USD', 15], ['CNY', 10]] }
+];
+
+// ============================================================
+// STATE
+// ============================================================
+let state = {
+  reportingCcy: 'USD',
+  revenue: [['USD', 80], ['EUR', 15], ['GBP', 5]],
+  costs:   [['USD', 55], ['INR', 35], ['EUR', 10]],
+  revSize: 100,
+  grossMargin: 35,
+  fromIdx: null,
+  toIdx: null,
+  // Compare mode (Period B)
+  compareMode: false,
+  fromIdxB: null,
+  toIdxB: null,
+  activeTemplate: null,
+  // Stress: ccy -> shock %
+  shocks: {},
+  // Hedge: ccy -> { ratio: 0-100, cost: 0-20 (annualized %) }
+  hedges: {}
+};
+
+let fxChartInstance = null;
+let FX_DATA = DEMO_FX;
+let DATA_MODE = 'demo';
+let DATA_LAST_UPDATED = null;
+
+// ============================================================
+// HELPERS
+// ============================================================
+function maxLen() { return Object.values(FX_DATA)[0]?.length || 0; }
+
+function idxToYm(idx) {
+  const len = maxLen();
+  if (len === 0) return '';
+  const now = new Date();
+  const monthsBack = (len - 1) - idx;
+  const d = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function ymToIdx(ym) {
+  const len = maxLen();
+  if (!ym || len === 0) return null;
+  let bestIdx = 0, bestDiff = Infinity;
+  for (let i = 0; i < len; i++) {
+    const y = idxToYm(i);
+    if (!y) continue;
+    const [ay, am] = y.split('-').map(Number);
+    const [by, bm] = ym.split('-').map(Number);
+    const diff = Math.abs((ay - by) * 12 + (am - bm));
+    if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+  }
+  return bestIdx;
+}
+
+function resolveRange(period = 'A') {
+  const len = maxLen();
+  if (len === 0) return { from: 0, to: 0, months: 0 };
+  if (period === 'B') {
+    const a = resolveRange('A');
+    const to = (state.toIdxB === null) ? Math.max(0, a.from - 1) : Math.min(Math.max(state.toIdxB, 0), len - 1);
+    const defaultFrom = Math.max(0, to - 12);
+    const from = (state.fromIdxB === null) ? defaultFrom : Math.min(Math.max(state.fromIdxB, 0), to - 1);
+    return { from, to, months: to - from };
+  }
+  const to = (state.toIdx === null) ? (len - 1) : Math.min(Math.max(state.toIdx, 0), len - 1);
+  const defaultFrom = Math.max(0, to - 12);
+  const from = (state.fromIdx === null) ? defaultFrom : Math.min(Math.max(state.fromIdx, 0), to - 1);
+  return { from, to, months: to - from };
+}
+
+// Convert: how many units of "to" does 1 unit of "from" buy at idx?
+function fxRate(from, to, idx) {
+  // FX_DATA[c][idx] = value of 1 c in USD
+  const fromUsd = FX_DATA[from]?.[idx];
+  const toUsd = FX_DATA[to]?.[idx];
+  if (!fromUsd || !toUsd) return null;
+  return fromUsd / toUsd;
+}
+
+function fmtPct(n) {
+  if (Math.abs(n) < 0.05) return '0.0';
+  return (n >= 0 ? '+' : '') + n.toFixed(1);
+}
+
+function fmtAbs(n) {
+  const abs = Math.abs(n);
+  if (abs >= 1) return (n >= 0 ? '+' : '') + n.toFixed(1) + 'M';
+  if (abs >= 0.001) return (n >= 0 ? '+' : '') + (n * 1000).toFixed(0) + 'K';
+  return '0';
+}
+
+// All currencies present in either rev or cost mix
+function allExposedCcys() {
+  const set = new Set();
+  state.revenue.forEach(([c]) => set.add(c));
+  state.costs.forEach(([c]) => set.add(c));
+  set.delete(state.reportingCcy);
+  return [...set];
+}
+
+// ============================================================
+// REALIZED CALC
+// ============================================================
+function realizedImpact(period = 'A') {
+  const { from, to } = resolveRange(period);
+  const rep = state.reportingCcy;
+
+  const moves = {};
+  CURRENCIES.forEach(c => {
+    const r0 = fxRate(c, rep, from);
+    const r1 = fxRate(c, rep, to);
+    moves[c] = (r0 && r1) ? ((r1 - r0) / r0) * 100 : 0;
+  });
+
+  const revImpact = state.revenue.reduce((s, [c, w]) => s + (w / 100) * moves[c], 0);
+  const costImpact = state.costs.reduce((s, [c, w]) => s + (w / 100) * moves[c], 0);
+
+  const allCcys = new Set([...state.revenue.map(r => r[0]), ...state.costs.map(c => c[0])]);
+  const decomp = [];
+  allCcys.forEach(c => {
+    const revW = (state.revenue.find(r => r[0] === c)?.[1] || 0) / 100;
+    const costW = (state.costs.find(co => co[0] === c)?.[1] || 0) / 100;
+    const gm = state.grossMargin / 100;
+    const marginContribPct = (revW * moves[c]) - ((1 - gm) * costW * moves[c]);
+    decomp.push({ ccy: c, revW, costW, move: moves[c], impact: marginContribPct });
+  });
+  decomp.sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact));
+
+  const gm = state.grossMargin / 100;
+  const revFactor = 1 + revImpact / 100;
+  const costFactor = 1 + costImpact / 100;
+  const oldMargin = gm;
+  const newMargin = (revFactor - (1 - gm) * costFactor) / revFactor;
+  const marginBps = (newMargin - oldMargin) * 10000;
+
+  return { revImpact, costImpact, decomp, marginBps, moves };
+}
+
+// ============================================================
+// SCENARIO CALC
+// ============================================================
+function scenarioImpact() {
+  const rep = state.reportingCcy;
+  const revImpact = state.revenue.reduce((s, [c, w]) => s + (w / 100) * (state.shocks[c] || 0), 0);
+  const costImpact = state.costs.reduce((s, [c, w]) => s + (w / 100) * (state.shocks[c] || 0), 0);
+  const gm = state.grossMargin / 100;
+  const revFactor = 1 + revImpact / 100;
+  const costFactor = 1 + costImpact / 100;
+  const newMargin = (revFactor - (1 - gm) * costFactor) / revFactor;
+  const marginBps = (newMargin - gm) * 10000;
+
+  const revAbsM = state.revSize * revImpact / 100;
+  const costAbsM = state.revSize * (1 - gm) * costImpact / 100;
+  const grossProfitAbsM = revAbsM - costAbsM;
+
+  return { revImpact, costImpact, marginBps, revAbsM, costAbsM, grossProfitAbsM };
+}
+
+// ============================================================
+// VOLATILITY CALC
+// ============================================================
+function volForPair(ccy, rep, from, to) {
+  const series = [];
+  for (let i = from; i <= to; i++) {
+    const r = fxRate(ccy, rep, i);
+    if (r) series.push(r);
+  }
+  if (series.length < 3) return { vol: 0, move: 0, latest: 0 };
+  // Monthly log returns
+  const rets = [];
+  for (let i = 1; i < series.length; i++) {
+    rets.push(Math.log(series[i] / series[i - 1]));
+  }
+  const mean = rets.reduce((a, b) => a + b, 0) / rets.length;
+  const variance = rets.reduce((s, r) => s + Math.pow(r - mean, 2), 0) / rets.length;
+  const monthlyVol = Math.sqrt(variance);
+  const annualVol = monthlyVol * Math.sqrt(12) * 100;
+  const move = ((series[series.length - 1] - series[0]) / series[0]) * 100;
+  return { vol: annualVol, move, latest: series[series.length - 1] };
+}
+
+// ============================================================
+// RENDER: Templates
+// ============================================================
+function renderTemplates() {
+  const wrap = document.getElementById('templates');
+  wrap.innerHTML = '';
+  TEMPLATES.forEach((tpl, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'template-btn' + (state.activeTemplate === i ? ' active' : '');
+    btn.textContent = tpl.name;
+    btn.onclick = () => loadTemplate(i);
+    wrap.appendChild(btn);
+  });
+}
+
+function loadTemplate(i) {
+  const tpl = TEMPLATES[i];
+  state.activeTemplate = i;
+  state.reportingCcy = tpl.reporting;
+  state.revenue = tpl.revenue.map(([c, w]) => [c, w]);
+  state.costs = tpl.costs.map(([c, w]) => [c, w]);
+  state.shocks = {};
+  document.getElementById('reportingCcy').value = tpl.reporting;
+  renderAll();
+}
+
+// ============================================================
+// RENDER: Exposure rows
+// ============================================================
+function renderExposureRows(listKey, containerId, totalId) {
+  const list = state[listKey];
+  const wrap = document.getElementById(containerId);
+  wrap.innerHTML = '';
+  list.forEach((row, idx) => {
+    const [ccy, weight] = row;
+    const div = document.createElement('div');
+    div.className = 'exp-row';
+    const sel = document.createElement('select');
+    CURRENCIES.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c; opt.textContent = c;
+      if (c === ccy) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.onchange = (e) => { state[listKey][idx][0] = e.target.value; state.activeTemplate = null; renderAll(); };
+    const wt = document.createElement('input');
+    wt.type = 'number'; wt.min = 0; wt.max = 100; wt.step = 1; wt.value = weight;
+    wt.oninput = (e) => { state[listKey][idx][1] = parseFloat(e.target.value) || 0; state.activeTemplate = null; renderAll(); };
+    const rm = document.createElement('button');
+    rm.className = 'exp-remove'; rm.textContent = '×';
+    rm.onclick = () => { state[listKey].splice(idx, 1); state.activeTemplate = null; renderAll(); };
+    div.appendChild(sel); div.appendChild(wt); div.appendChild(rm);
+    wrap.appendChild(div);
+  });
+  const total = list.reduce((s, [, w]) => s + w, 0);
+  const totalEl = document.getElementById(totalId);
+  totalEl.textContent = total.toFixed(0) + '%';
+  totalEl.className = Math.abs(total - 100) < 0.5 ? 'pill-rev' : '';
+  if (totalId === 'costTotal') totalEl.className = Math.abs(total - 100) < 0.5 ? 'pill-cost' : '';
+}
+
+// ============================================================
+// RENDER: Date controls
+// ============================================================
+function renderDateControls() {
+  const len = maxLen();
+  if (len === 0) return;
+  const fromInput = document.getElementById('fromDate');
+  const toInput = document.getElementById('toDate');
+  const minYm = idxToYm(0), maxYm = idxToYm(len - 1);
+  fromInput.min = minYm; fromInput.max = maxYm;
+  toInput.min = minYm; toInput.max = maxYm;
+  const { from, to, months } = resolveRange('A');
+  fromInput.value = idxToYm(from);
+  toInput.value = idxToYm(to);
+  document.getElementById('rangeMonthsLabel').textContent = months + (months === 1 ? ' month' : ' months');
+
+  const isLatest = (to === len - 1);
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.classList.remove('active');
+    const m = btn.dataset.months;
+    if (m && isLatest && parseInt(m) === months) btn.classList.add('active');
+  });
+
+  // Period A label tag visibility
+  document.getElementById('periodALabelWrap').style.display = state.compareMode ? 'flex' : 'none';
+
+  if (!state.compareMode) return;
+  const fromInputB = document.getElementById('fromDateB');
+  const toInputB = document.getElementById('toDateB');
+  fromInputB.min = minYm; fromInputB.max = maxYm;
+  toInputB.min = minYm; toInputB.max = maxYm;
+  const b = resolveRange('B');
+  fromInputB.value = idxToYm(b.from);
+  toInputB.value = idxToYm(b.to);
+  document.getElementById('rangeMonthsLabelB').textContent = b.months + (b.months === 1 ? ' month' : ' months');
+
+  const aRange = resolveRange('A');
+  const isPriorToA = (b.to === aRange.from - 1);
+  document.querySelectorAll('.preset-btn-b').forEach(btn => {
+    btn.classList.remove('active');
+    const m = btn.dataset.months;
+    if (m && isPriorToA && parseInt(m) === b.months) btn.classList.add('active');
+  });
+}
+
+// ============================================================
+// RENDER: Hero summary (realized)
+// ============================================================
+function renderHero() {
+  const { revImpact, costImpact, marginBps } = realizedImpact();
+  document.getElementById('heroRev').innerHTML = fmtPct(revImpact) + '<span class="unit">%</span>';
+  document.getElementById('heroRev').className = 'hero-stat-value ' + (revImpact >= 0 ? 'pos' : 'neg');
+  document.getElementById('heroCost').innerHTML = fmtPct(costImpact) + '<span class="unit">%</span>';
+  // For costs, "higher" is bad — so flip color
+  document.getElementById('heroCost').className = 'hero-stat-value ' + (costImpact <= 0 ? 'pos' : 'neg');
+  document.getElementById('heroMargin').innerHTML = (marginBps >= 0 ? '+' : '') + Math.round(marginBps) + '<span class="unit">bps</span>';
+  document.getElementById('heroMargin').className = 'hero-stat-value ' + (marginBps >= 0 ? 'pos' : 'neg');
+
+  const { from, to } = resolveRange();
+  const period = `${idxToYm(from)} → ${idxToYm(to)}`;
+  document.getElementById('heroRevCtx').textContent = `${period} · in ${state.reportingCcy}`;
+  document.getElementById('heroCostCtx').textContent = `${period} · in ${state.reportingCcy}`;
+  document.getElementById('heroMarginCtx').textContent = `gross margin moves to ${(state.grossMargin + marginBps / 100).toFixed(1)}%`;
+}
+
+// ============================================================
+// RENDER: Decomposition
+// ============================================================
+function renderDecomp() {
+  const { decomp } = realizedImpact();
+  const wrap = document.getElementById('decompList');
+  wrap.innerHTML = '';
+  if (decomp.length === 0) { wrap.innerHTML = '<p class="note">Add exposure to see decomposition.</p>'; return; }
+  const maxAbs = Math.max(...decomp.map(d => Math.abs(d.impact)), 0.1);
+  decomp.forEach(d => {
+    const row = document.createElement('div');
+    row.className = 'decomp-row';
+    const isPos = d.impact >= 0;
+    const widthPct = (Math.abs(d.impact) / maxAbs) * 50;
+    row.innerHTML = `
+      <div class="decomp-label"><span class="ccy-tag">${d.ccy}</span> <span style="color: var(--muted); font-size: 0.7rem;">${fmtPct(d.move)}%</span></div>
+      <div class="decomp-bar-cell">
+        <div class="decomp-bar-center"></div>
+        <div class="decomp-bar-fill ${isPos ? 'pos' : 'neg'}" style="width: ${widthPct}%;"></div>
+      </div>
+      <div class="decomp-value ${isPos ? 'pos' : 'neg'}">${fmtPct(d.impact)}%</div>
+    `;
+    wrap.appendChild(row);
+  });
+}
+
+// ============================================================
+// RENDER: Stress sliders
+// ============================================================
+function renderStress() {
+  const wrap = document.getElementById('stressList');
+  wrap.innerHTML = '';
+  const ccys = allExposedCcys();
+  if (ccys.length === 0) {
+    wrap.innerHTML = '<p class="note">No foreign-currency exposure to stress. Add currencies above.</p>';
+    document.getElementById('scenRev').innerHTML = '0.0<span class="unit">%</span>';
+    document.getElementById('scenCost').innerHTML = '0.0<span class="unit">%</span>';
+    document.getElementById('scenMargin').innerHTML = '0<span class="unit">bps</span>';
+    document.getElementById('scenRevAbs').textContent = '—';
+    document.getElementById('scenCostAbs').textContent = '—';
+    document.getElementById('scenMarginAbs').textContent = '—';
+    return;
+  }
+  ccys.forEach(c => {
+    const shock = state.shocks[c] || 0;
+    const revW = (state.revenue.find(r => r[0] === c)?.[1] || 0) / 100;
+    const costW = (state.costs.find(co => co[0] === c)?.[1] || 0) / 100;
+    const gm = state.grossMargin / 100;
+    // Impact of this currency only on margin
+    const impactPct = (revW * shock) - ((1 - gm) * costW * shock);
+
+    const row = document.createElement('div');
+    row.className = 'stress-row';
+    row.innerHTML = `
+      <div><span class="ccy-tag">${c}</span></div>
+      <div><input type="range" min="-30" max="30" step="1" value="${shock}" data-ccy="${c}" /></div>
+      <div class="stress-shock">${shock >= 0 ? '+' : ''}${shock}%</div>
+      <div class="stress-impact ${impactPct >= 0 ? 'pos' : 'neg'}">${fmtPct(impactPct)}%</div>
+    `;
+    row.querySelector('input').addEventListener('input', (e) => {
+      state.shocks[c] = parseInt(e.target.value);
+      renderStress();
+    });
+    wrap.appendChild(row);
+  });
+
+  // Aggregate
+  const { revImpact, costImpact, marginBps, revAbsM, costAbsM, grossProfitAbsM } = scenarioImpact();
+  document.getElementById('scenRev').innerHTML = fmtPct(revImpact) + '<span class="unit">%</span>';
+  document.getElementById('scenRev').className = 'hero-stat-value ' + (revImpact >= 0 ? 'pos' : 'neg');
+  document.getElementById('scenCost').innerHTML = fmtPct(costImpact) + '<span class="unit">%</span>';
+  document.getElementById('scenCost').className = 'hero-stat-value ' + (costImpact <= 0 ? 'pos' : 'neg');
+  document.getElementById('scenMargin').innerHTML = (marginBps >= 0 ? '+' : '') + Math.round(marginBps) + '<span class="unit">bps</span>';
+  document.getElementById('scenMargin').className = 'hero-stat-value ' + (marginBps >= 0 ? 'pos' : 'neg');
+
+  document.getElementById('scenRevAbs').textContent = `≈ ${fmtAbs(revAbsM)} ${state.reportingCcy} on ${state.revSize}M`;
+  document.getElementById('scenCostAbs').textContent = `≈ ${fmtAbs(costAbsM)} ${state.reportingCcy} cost change`;
+  document.getElementById('scenMarginAbs').textContent = `≈ ${fmtAbs(grossProfitAbsM)} gross profit`;
+}
+
+// ============================================================
+// RENDER: Volatility table
+// ============================================================
+function renderVol() {
+  const body = document.getElementById('volTableBody');
+  body.innerHTML = '';
+  const { from, to } = resolveRange();
+  const ccys = allExposedCcys();
+  if (ccys.length === 0) {
+    body.innerHTML = '<tr><td colspan="5" class="note">No exposure to analyze.</td></tr>';
+    return;
+  }
+  ccys.forEach(c => {
+    const { vol, move, latest } = volForPair(c, state.reportingCcy, from, to);
+    const revW = (state.revenue.find(r => r[0] === c)?.[1] || 0) / 100;
+    const costW = (state.costs.find(co => co[0] === c)?.[1] || 0) / 100;
+    const netW = Math.abs(revW - costW);
+    const hint = (vol > 10 && netW > 0.1) ? '⚠ Consider hedging' : (vol > 15 ? '⚠ High vol' : '—');
+    const volClass = vol > 15 ? 'vol-high' : (vol > 10 ? 'vol-med' : '');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="ccy-tag">${c}/${state.reportingCcy}</span></td>
+      <td>${latest.toFixed(4)}</td>
+      <td class="${move >= 0 ? 'vol-med' : 'vol-high'}">${fmtPct(move)}%</td>
+      <td class="${volClass}">${vol.toFixed(1)}%</td>
+      <td>${hint}</td>
+    `;
+    body.appendChild(tr);
+  });
+}
+
+// ============================================================
+// RENDER: Chart
+// ============================================================
+function renderChart() {
+  const { from, to } = resolveRange();
+  const rep = state.reportingCcy;
+  const ccys = allExposedCcys();
+  const labels = [];
+  for (let i = from; i <= to; i++) labels.push(idxToYm(i));
+  const colors = ['#b8341e', '#2d5f8a', '#1f5f3f', '#6a4a7d', '#d4a373', '#5c5c5c', '#a83232', '#3a7a8a'];
+  const datasets = ccys.map((c, i) => {
+    const base = fxRate(c, rep, from) || 1;
+    const data = [];
+    for (let j = from; j <= to; j++) {
+      const r = fxRate(c, rep, j);
+      data.push(r ? (r / base) * 100 : null);
+    }
+    return {
+      label: `${c}/${rep}`,
+      data,
+      borderColor: colors[i % colors.length],
+      backgroundColor: colors[i % colors.length] + '20',
+      borderWidth: 2,
+      tension: 0.25,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      fill: false
+    };
+  });
+
+  if (fxChartInstance) fxChartInstance.destroy();
+  const ctx = document.getElementById('fxChart').getContext('2d');
+  fxChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', align: 'end', labels: { font: { family: 'JetBrains Mono', size: 11 }, color: '#0f0f0e', boxWidth: 14, boxHeight: 2 } },
+        tooltip: { backgroundColor: '#0f0f0e', titleFont: { family: 'JetBrains Mono', size: 11 }, bodyFont: { family: 'JetBrains Mono', size: 11 } }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(15,15,14,0.05)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#6b6660', maxTicksLimit: 8 } },
+        y: { grid: { color: 'rgba(15,15,14,0.08)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#6b6660' } }
+      }
+    }
+  });
+  document.getElementById('chartLabel').textContent = resolveRange().months + 'M indexed';
+}
+
+// ============================================================
+// RENDER: Net Exposure
+// ============================================================
+function renderNetExposure() {
+  const wrap = document.getElementById('netList');
+  wrap.innerHTML = '';
+  const allCcys = new Set([...state.revenue.map(r => r[0]), ...state.costs.map(c => c[0])]);
+  allCcys.delete(state.reportingCcy);
+  if (allCcys.size === 0) {
+    wrap.innerHTML = '<p class="note">No foreign-currency exposure. All revenue and costs are in your reporting currency.</p>';
+    return;
+  }
+  // Header
+  const header = document.createElement('div');
+  header.className = 'net-header';
+  header.innerHTML = '<div>Currency</div><div>Rev%</div><div>Cost%</div><div>Net position</div><div>Net %</div>';
+  wrap.appendChild(header);
+
+  const rows = [];
+  allCcys.forEach(c => {
+    const revW = state.revenue.find(r => r[0] === c)?.[1] || 0;
+    const costW = state.costs.find(co => co[0] === c)?.[1] || 0;
+    const netW = revW - costW;
+    rows.push({ ccy: c, revW, costW, netW });
+  });
+  rows.sort((a, b) => Math.abs(b.netW) - Math.abs(a.netW));
+  const maxAbs = Math.max(...rows.map(r => Math.abs(r.netW)), 5);
+
+  rows.forEach(r => {
+    const isLong = r.netW > 0;
+    const widthPct = (Math.abs(r.netW) / maxAbs) * 50;
+    const row = document.createElement('div');
+    row.className = 'net-row';
+    const label = Math.abs(r.netW) < 0.5 ? 'flat' : (isLong ? 'long' : 'short');
+    row.innerHTML = `
+      <div><span class="ccy-tag">${r.ccy}</span></div>
+      <div class="net-rev">${r.revW.toFixed(0)}%</div>
+      <div class="net-cost">${r.costW.toFixed(0)}%</div>
+      <div class="net-bar-cell">
+        <div class="net-bar-center"></div>
+        <div class="net-bar-fill ${isLong ? 'long' : 'short'}" style="width: ${widthPct}%;"></div>
+      </div>
+      <div class="net-value ${isLong ? 'long' : 'short'}">${isLong ? '+' : ''}${r.netW.toFixed(0)}% ${label !== 'flat' ? label : ''}</div>
+    `;
+    wrap.appendChild(row);
+  });
+}
+
+// ============================================================
+// RENDER: Compare Periods
+// ============================================================
+function renderCompare() {
+  const panel = document.getElementById('comparePanel');
+  if (!state.compareMode) { panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+
+  const a = realizedImpact('A');
+  const b = realizedImpact('B');
+  const ra = resolveRange('A'), rb = resolveRange('B');
+
+  document.getElementById('compareRangeA').textContent = `${idxToYm(ra.from)} → ${idxToYm(ra.to)} · ${ra.months}m`;
+  document.getElementById('compareRangeB').textContent = `${idxToYm(rb.from)} → ${idxToYm(rb.to)} · ${rb.months}m`;
+  document.getElementById('compareMarginA').innerHTML = (a.marginBps >= 0 ? '+' : '') + Math.round(a.marginBps) + '<span class="unit">bps</span>';
+  document.getElementById('compareMarginB').innerHTML = (b.marginBps >= 0 ? '+' : '') + Math.round(b.marginBps) + '<span class="unit">bps</span>';
+
+  const delta = a.marginBps - b.marginBps;
+  document.getElementById('compareDeltaValue').innerHTML = (delta >= 0 ? '+' : '') + Math.round(delta) + '<span class="unit">bps</span>';
+  document.getElementById('compareDeltaDir').textContent = delta > 10 ? 'A BETTER' : (delta < -10 ? 'A WORSE' : 'STABLE');
+  const dMeta = document.getElementById('compareDeltaMeta');
+  if (Math.abs(delta) < 10) dMeta.textContent = 'FX impact roughly unchanged';
+  else if (delta > 0) dMeta.textContent = `Period A is ${Math.round(delta)}bps better`;
+  else dMeta.textContent = `Period A is ${Math.round(Math.abs(delta))}bps worse`;
+
+  document.getElementById('compareSummary').textContent = `${state.revenue.length + state.costs.length} exposure items`;
+
+  // Per-currency comparison table
+  const body = document.getElementById('compareTableBody');
+  body.innerHTML = '';
+  const aMap = Object.fromEntries(a.decomp.map(d => [d.ccy, d]));
+  const bMap = Object.fromEntries(b.decomp.map(d => [d.ccy, d]));
+  const ccys = Object.keys(aMap);
+  const rows = ccys.map(c => {
+    const aRow = aMap[c], bRow = bMap[c] || { move: 0, impact: 0 };
+    return { ccy: c, moveA: aRow.move, moveB: bRow.move, impA: aRow.impact, impB: bRow.impact, dImp: aRow.impact - bRow.impact };
+  }).sort((x, y) => Math.abs(y.dImp) - Math.abs(x.dImp));
+
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    const dClass = r.dImp > 0.05 ? 'delta-down' : (r.dImp < -0.05 ? 'delta-up' : '');
+    tr.innerHTML = `
+      <td><span class="ccy-tag">${r.ccy}</span></td>
+      <td>${fmtPct(r.moveA)}%</td>
+      <td>${fmtPct(r.moveB)}%</td>
+      <td>${fmtPct(r.impA)}%</td>
+      <td>${fmtPct(r.impB)}%</td>
+      <td class="${dClass}">${fmtPct(r.dImp)}pp</td>
+    `;
+    body.appendChild(tr);
+  });
+}
+
+// ============================================================
+// RENDER: Hedge Simulator
+// ============================================================
+function renderHedge() {
+  const wrap = document.getElementById('hedgeList');
+  wrap.innerHTML = '';
+  const ccys = allExposedCcys();
+  if (ccys.length === 0) {
+    wrap.innerHTML = '<p class="note">No foreign-currency exposure to hedge.</p>';
+    document.getElementById('hedgeUnhedged').innerHTML = '0<span class="unit">bps</span>';
+    document.getElementById('hedgeHedged').innerHTML = '0<span class="unit">bps</span>';
+    document.getElementById('hedgeVolRed').innerHTML = '—<span class="unit">%</span>';
+    return;
+  }
+  // Header
+  const header = document.createElement('div');
+  header.className = 'hedge-header';
+  header.innerHTML = '<div>CCY</div><div>Hedge ratio</div><div>Ratio</div><div>Hedge cost (ann %)</div><div>Cost</div><div>Net impact</div>';
+  wrap.appendChild(header);
+
+  ccys.forEach(c => {
+    const h = state.hedges[c] || { ratio: 0, cost: 1.5 };
+    if (!state.hedges[c]) state.hedges[c] = h;
+    // Per-currency unhedged historical impact
+    const { from, to, months } = resolveRange('A');
+    const startRate = fxRate(c, state.reportingCcy, from) || 1;
+    const endRate = fxRate(c, state.reportingCcy, to) || 1;
+    const unhedgedMove = ((endRate - startRate) / startRate) * 100;
+    // Hedged portion: locked at start rate, minus hedge cost (pro-rated to window length)
+    const hedgeCostForWindow = h.cost * (months / 12);
+    const hedgedMove = -hedgeCostForWindow; // hedge eliminates the move but costs forward points
+    const blendedMove = (h.ratio / 100) * hedgedMove + (1 - h.ratio / 100) * unhedgedMove;
+    const revW = (state.revenue.find(r => r[0] === c)?.[1] || 0) / 100;
+    const costW = (state.costs.find(co => co[0] === c)?.[1] || 0) / 100;
+    const gm = state.grossMargin / 100;
+    const netImpactPct = (revW * blendedMove) - ((1 - gm) * costW * blendedMove);
+
+    const row = document.createElement('div');
+    row.className = 'hedge-row';
+    row.innerHTML = `
+      <div><span class="ccy-tag">${c}</span></div>
+      <div><input type="range" min="0" max="100" step="5" value="${h.ratio}" data-ccy="${c}" data-field="ratio" /></div>
+      <div class="hedge-val">${h.ratio}%</div>
+      <div><input type="range" min="0" max="20" step="0.5" value="${h.cost}" data-ccy="${c}" data-field="cost" class="cost" /></div>
+      <div class="hedge-val">${h.cost.toFixed(1)}%</div>
+      <div class="hedge-impact ${netImpactPct >= 0 ? 'pos' : 'neg'}">${fmtPct(netImpactPct)}%</div>
+    `;
+    row.querySelectorAll('input[type="range"]').forEach(inp => {
+      inp.addEventListener('input', (e) => {
+        const ccy = e.target.dataset.ccy;
+        const field = e.target.dataset.field;
+        state.hedges[ccy] = state.hedges[ccy] || { ratio: 0, cost: 1.5 };
+        state.hedges[ccy][field] = parseFloat(e.target.value);
+        renderHedge();
+      });
+    });
+    wrap.appendChild(row);
+  });
+
+  // Aggregate: compute both unhedged and hedged monthly margin paths over window
+  const { from, to } = resolveRange('A');
+  const gm = state.grossMargin / 100;
+  const unhedgedMonthly = []; // monthly margin delta in bps (vs. start)
+  const hedgedMonthly = [];
+
+  for (let i = from + 1; i <= to; i++) {
+    let unhRev = 0, unhCost = 0, hedRev = 0, hedCost = 0;
+    ccys.forEach(c => {
+      const startRate = fxRate(c, state.reportingCcy, from) || 1;
+      const currRate = fxRate(c, state.reportingCcy, i) || startRate;
+      const unhedgedMove = ((currRate - startRate) / startRate) * 100;
+      const h = state.hedges[c] || { ratio: 0, cost: 1.5 };
+      const monthsElapsed = i - from;
+      const hedgeCostAccrued = h.cost * (monthsElapsed / 12);
+      const hedgedMove = -hedgeCostAccrued;
+      const blendedMove = (h.ratio / 100) * hedgedMove + (1 - h.ratio / 100) * unhedgedMove;
+      const revW = (state.revenue.find(r => r[0] === c)?.[1] || 0) / 100;
+      const costW = (state.costs.find(co => co[0] === c)?.[1] || 0) / 100;
+      unhRev += revW * unhedgedMove;
+      unhCost += costW * unhedgedMove;
+      hedRev += revW * blendedMove;
+      hedCost += costW * blendedMove;
+    });
+    // Margin delta calculation
+    const unhMarg = (1 + unhRev / 100 - (1 - gm) * (1 + unhCost / 100)) / (1 + unhRev / 100) - gm;
+    const hedMarg = (1 + hedRev / 100 - (1 - gm) * (1 + hedCost / 100)) / (1 + hedRev / 100) - gm;
+    unhedgedMonthly.push(unhMarg * 10000);
+    hedgedMonthly.push(hedMarg * 10000);
+  }
+
+  const unhFinal = unhedgedMonthly[unhedgedMonthly.length - 1] || 0;
+  const hedFinal = hedgedMonthly[hedgedMonthly.length - 1] || 0;
+
+  // Stdev of month-over-month margin changes
+  function stdevOfDiffs(series) {
+    if (series.length < 2) return 0;
+    const diffs = [];
+    for (let i = 1; i < series.length; i++) diffs.push(series[i] - series[i - 1]);
+    const m = diffs.reduce((a, b) => a + b, 0) / diffs.length;
+    const v = diffs.reduce((s, x) => s + Math.pow(x - m, 2), 0) / diffs.length;
+    return Math.sqrt(v);
+  }
+  const unhVol = stdevOfDiffs(unhedgedMonthly);
+  const hedVol = stdevOfDiffs(hedgedMonthly);
+  const volReduction = unhVol > 0 ? ((unhVol - hedVol) / unhVol) * 100 : 0;
+
+  document.getElementById('hedgeUnhedged').innerHTML = (unhFinal >= 0 ? '+' : '') + Math.round(unhFinal) + '<span class="unit">bps</span>';
+  document.getElementById('hedgeUnhedged').className = 'hero-stat-value ' + (unhFinal >= 0 ? 'pos' : 'neg');
+  document.getElementById('hedgeHedged').innerHTML = (hedFinal >= 0 ? '+' : '') + Math.round(hedFinal) + '<span class="unit">bps</span>';
+  document.getElementById('hedgeHedged').className = 'hero-stat-value ' + (hedFinal >= 0 ? 'pos' : 'neg');
+  document.getElementById('hedgeHedgedCtx').textContent = `vs. ${(unhFinal >= 0 ? '+' : '') + Math.round(unhFinal)} unhedged`;
+
+  const volRedRounded = Math.round(volReduction);
+  document.getElementById('hedgeVolRed').innerHTML = (volRedRounded >= 0 ? '+' : '') + volRedRounded + '<span class="unit">%</span>';
+  document.getElementById('hedgeVolRed').className = 'hero-stat-value ' + (volRedRounded >= 0 ? 'pos' : 'neg');
+  document.getElementById('hedgeVolRedCtx').textContent = volRedRounded > 0 ? 'less margin variance' : (volRedRounded < 0 ? 'more variance (hedge cost > vol)' : 'no change');
+}
+
+// ============================================================
+// RENDER ALL
+// ============================================================
+function renderAll() {
+  renderTemplates();
+  renderExposureRows('revenue', 'revList', 'revTotal');
+  renderExposureRows('costs', 'costList', 'costTotal');
+  document.getElementById('expCount').textContent = `${state.revenue.length} rev / ${state.costs.length} cost`;
+  renderDateControls();
+  renderHero();
+  renderDecomp();
+  renderNetExposure();
+  renderCompare();
+  renderStress();
+  renderHedge();
+  renderVol();
+  renderChart();
+
+  // Status banner
+  if (DATA_MODE === 'live') {
+    document.getElementById('dataStatus').innerHTML = '<span class="live-dot"></span>Live data';
+    document.getElementById('lastUpdated').textContent = `Updated: ${DATA_LAST_UPDATED || '—'}`;
+    document.getElementById('dataBanner').innerHTML = `<div class="data-banner live"><span>Live FX rates from frankfurter.app (ECB)</span><span>${Object.keys(FX_DATA).length} currencies</span></div>`;
+  } else {
+    document.getElementById('dataStatus').innerHTML = '<span class="live-dot demo"></span>Demo mode';
+    document.getElementById('lastUpdated').textContent = 'Sample data';
+    document.getElementById('dataBanner').innerHTML = `<div class="data-banner demo"><span>Demo FX data — production version fetches live from frankfurter.app (no API key needed)</span><span>${Object.keys(FX_DATA).length} currencies</span></div>`;
+  }
+}
+
+// ============================================================
+// EVENTS
+// ============================================================
+document.getElementById('reportingCcy').addEventListener('change', (e) => {
+  state.reportingCcy = e.target.value;
+  state.activeTemplate = null;
+  renderAll();
+});
+
+document.getElementById('addRev').addEventListener('click', () => {
+  state.revenue.push(['USD', 10]); state.activeTemplate = null; renderAll();
+});
+document.getElementById('addCost').addEventListener('click', () => {
+  state.costs.push(['USD', 10]); state.activeTemplate = null; renderAll();
+});
+
+document.getElementById('grossMargin').addEventListener('input', (e) => {
+  state.grossMargin = parseFloat(e.target.value) || 0;
+  document.getElementById('gmDisplay').textContent = state.grossMargin + '%';
+  renderHero(); renderDecomp(); renderStress();
+});
+
+document.getElementById('revSize').addEventListener('input', (e) => {
+  state.revSize = parseFloat(e.target.value) || 0;
+  renderStress();
+});
+
+document.getElementById('fromDate').addEventListener('change', (e) => {
+  state.fromIdx = ymToIdx(e.target.value); renderAll();
+});
+document.getElementById('toDate').addEventListener('change', (e) => {
+  state.toIdx = ymToIdx(e.target.value);
+  const { from, to } = resolveRange();
+  if (from >= to) state.fromIdx = Math.max(0, to - 12);
+  renderAll();
+});
+
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const len = maxLen();
+    const m = parseInt(btn.dataset.months);
+    if (!m) return;
+    state.toIdx = len - 1;
+    state.fromIdx = Math.max(0, (len - 1) - m);
+    renderAll();
+  });
+});
+
+document.getElementById('stressReset').addEventListener('click', () => {
+  state.shocks = {};
+  renderStress();
+});
+
+// Compare toggle
+document.getElementById('compareToggle').addEventListener('change', (e) => {
+  state.compareMode = e.target.checked;
+  document.getElementById('periodBSection').style.display = state.compareMode ? 'block' : 'none';
+  if (state.compareMode) {
+    const a = resolveRange('A');
+    if (state.toIdxB === null) state.toIdxB = Math.max(0, a.from - 1);
+    if (state.fromIdxB === null) state.fromIdxB = Math.max(0, (state.toIdxB || 0) - 12);
+  }
+  renderAll();
+});
+
+// Period B date pickers
+document.getElementById('fromDateB').addEventListener('change', (e) => {
+  state.fromIdxB = ymToIdx(e.target.value);
+  renderAll();
+});
+document.getElementById('toDateB').addEventListener('change', (e) => {
+  state.toIdxB = ymToIdx(e.target.value);
+  const b = resolveRange('B');
+  if (b.from >= b.to) state.fromIdxB = Math.max(0, b.to - 12);
+  renderAll();
+});
+
+// Period B presets — anchor to immediately before Period A
+document.querySelectorAll('.preset-btn-b').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const len = maxLen();
+    const m = parseInt(btn.dataset.months);
+    if (!m || len === 0) return;
+    const a = resolveRange('A');
+    state.toIdxB = Math.max(0, a.from - 1);
+    state.fromIdxB = Math.max(0, state.toIdxB - m);
+    renderAll();
+  });
+});
+
+// ============================================================
+// INIT — try frankfurter.app for live rates, fall back to demo
+// ============================================================
+async function loadLiveFx() {
+  try {
+    // frankfurter.app: free, no key, CORS-enabled, ECB-sourced
+    const today = new Date();
+    const start = new Date(today.getFullYear(), today.getMonth() - 36, 1);
+    const startStr = start.toISOString().slice(0, 10);
+    const endStr = today.toISOString().slice(0, 10);
+    const ccys = CURRENCIES.filter(c => c !== 'USD');
+    const url = `https://api.frankfurter.app/${startStr}..${endStr}?from=USD&to=${ccys.join(',')}`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+
+    // data.rates is { 'YYYY-MM-DD': { EUR: 0.93, GBP: 0.79, ... } } (rates per 1 USD)
+    // We need FX_DATA[ccy] = array of monthly values of 1 ccy in USD
+    // So if data.rates[date].EUR = 0.93 (EUR per USD), then 1 EUR = 1/0.93 USD
+    const dates = Object.keys(data.rates).sort();
+    if (dates.length < 12) throw new Error('Insufficient data');
+
+    // Sample to month-ends
+    const monthly = {};
+    dates.forEach(d => {
+      const ym = d.slice(0, 7);
+      monthly[ym] = data.rates[d]; // last date in month wins
+    });
+    const monthKeys = Object.keys(monthly).sort();
+
+    const live = { USD: monthKeys.map(() => 1.0) };
+    ccys.forEach(c => {
+      live[c] = monthKeys.map(ym => {
+        const r = monthly[ym][c];
+        return r ? 1 / r : null;
+      }).filter(v => v !== null);
+    });
+
+    FX_DATA = live;
+    DATA_MODE = 'live';
+    DATA_LAST_UPDATED = monthKeys[monthKeys.length - 1];
+  } catch (e) {
+    console.warn('Falling back to demo FX:', e.message);
+    FX_DATA = DEMO_FX;
+    DATA_MODE = 'demo';
+  }
+}
+
+(async function init() {
+  await loadLiveFx();
+  loadTemplate(1); // Default: US tech with India dev
+})();
+</script>
+</body>
+</html>

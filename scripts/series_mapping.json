@@ -1,0 +1,153 @@
+{
+  "_comment": "Series mapping for BOTH tools: Pass-Through Calculator (cost buckets) and Pricing Power Index (industries). The fetcher writes data/us.json, data/tr.json, and data/industries.json. Verify TCMB series IDs against https://evds2.tcmb.gov.tr before production use.",
+  "_version": "2.0",
+  "_lookback_months": 36,
+
+  "US": {
+    "source": "FRED (Federal Reserve Bank of St. Louis)",
+    "api_base": "https://api.stlouisfed.org/fred/series/observations",
+    "auth_env": "FRED_API_KEY",
+    "buckets": [
+      { "id": "us_steel",       "label": "Steel & iron",            "series_id": "WPU101",          "notes": "PPI: Iron and steel" },
+      { "id": "us_aluminum",    "label": "Aluminum",                "series_id": "WPU10250105",     "notes": "PPI: Primary aluminum" },
+      { "id": "us_copper",      "label": "Copper",                  "series_id": "WPU10250301",     "notes": "PPI: Primary copper" },
+      { "id": "us_plastics",    "label": "Plastic resins",          "series_id": "WPU0721",         "notes": "PPI: Plastic resins and materials" },
+      { "id": "us_corrugated",  "label": "Corrugated packaging",    "series_id": "WPU0913",         "notes": "PPI: Paperboard containers and boxes" },
+      { "id": "us_diesel",      "label": "Diesel & fuel",           "series_id": "WPU057303",       "notes": "PPI: No. 2 diesel fuel" },
+      { "id": "us_trucking",    "label": "Trucking freight",        "series_id": "PCU484121484121", "notes": "PPI: General freight trucking, long-distance TL" },
+      { "id": "us_ocean",       "label": "Ocean freight",           "series_id": "PCU483111483111", "notes": "PPI: Deep sea freight transportation" },
+      { "id": "us_electricity", "label": "Industrial electricity",  "series_id": "WPU0543",         "notes": "PPI: Industrial electric power" },
+      { "id": "us_natgas",      "label": "Natural gas",             "series_id": "WPU0531",         "notes": "PPI: Industrial natural gas" },
+      { "id": "us_mfg_wages",   "label": "Manufacturing wages",     "series_id": "CES3000000003",   "notes": "Avg hourly earnings, manufacturing" },
+      { "id": "us_wh_wages",    "label": "Warehouse wages",         "series_id": "CES4348400008",   "notes": "Avg hourly earnings, warehousing & storage" },
+      { "id": "us_grain",       "label": "Grains & cereals",        "series_id": "WPU0121",         "notes": "PPI: Grains" },
+      { "id": "us_dairy",       "label": "Dairy",                   "series_id": "WPU017",          "notes": "PPI: Dairy products" },
+      { "id": "us_sugar",       "label": "Sugar",                   "series_id": "WPU0223",         "notes": "PPI: Sugar and confectionery" },
+      { "id": "us_oils",        "label": "Edible oils",             "series_id": "WPU026",          "notes": "PPI: Fats and oils" }
+    ]
+  },
+
+  "TR": {
+    "source": "TCMB EVDS (Türkiye Cumhuriyet Merkez Bankası, redistributing TÜİK)",
+    "api_base": "https://evds2.tcmb.gov.tr/service/evds/series=",
+    "auth_env": "TCMB_API_KEY",
+    "_warning": "TCMB series IDs are best-effort. Run verify_mapping.py against EVDS before relying on them.",
+    "buckets": [
+      { "id": "tr_steel",       "label": "Çelik & demir (Steel)",          "series_id": "TP.YUFE01.D24",      "notes": "Yİ-ÜFE: Ana metal sanayi" },
+      { "id": "tr_aluminum",    "label": "Alüminyum (Aluminum)",            "series_id": "TP.YUFE01.D2442",    "notes": "Yİ-ÜFE: Alüminyum — verify code" },
+      { "id": "tr_plastics",    "label": "Plastik (Plastics)",              "series_id": "TP.YUFE01.D22",      "notes": "Yİ-ÜFE: Kauçuk ve plastik" },
+      { "id": "tr_packaging",   "label": "Ambalaj (Packaging)",             "series_id": "TP.YUFE01.D17",      "notes": "Yİ-ÜFE: Kağıt ürünleri" },
+      { "id": "tr_diesel",      "label": "Akaryakıt (Diesel/fuel)",         "series_id": "TP.YUFE01.D19",      "notes": "Yİ-ÜFE: Rafine petrol" },
+      { "id": "tr_trucking",    "label": "Karayolu nakliye (Trucking)",     "series_id": "TP.YUFE01.D49",      "notes": "Yİ-ÜFE: Karayolu taşımacılığı — verify" },
+      { "id": "tr_electricity", "label": "Elektrik (Electricity)",          "series_id": "TP.YUFE01.D35",      "notes": "Yİ-ÜFE: Elektrik, gaz, buhar" },
+      { "id": "tr_natgas",      "label": "Doğalgaz (Natural gas)",          "series_id": "TP.YUFE01.D352",     "notes": "Yİ-ÜFE: Gaz dağıtımı — verify" },
+      { "id": "tr_wages",       "label": "İmalat ücretleri (Mfg wages)",    "series_id": "TP.KI1.YS04",        "notes": "Saatlik işgücü maliyeti — verify" },
+      { "id": "tr_grain",       "label": "Tahıl (Grains)",                  "series_id": "TP.YUFE01.D10",      "notes": "Yİ-ÜFE: Gıda ürünleri" },
+      { "id": "tr_dairy",       "label": "Süt ürünleri (Dairy)",            "series_id": "TP.YUFE01.D105",     "notes": "Yİ-ÜFE: Süt ürünleri — verify" },
+      { "id": "tr_sugar",       "label": "Şeker (Sugar)",                   "series_id": "TP.YUFE01.D108",     "notes": "Yİ-ÜFE: Şeker — verify" },
+      { "id": "tr_cpi",         "label": "Genel TÜFE (Headline CPI)",       "series_id": "TP.FG.J0",           "notes": "TÜFE genel endeks" },
+      { "id": "tr_ppi",         "label": "Genel Yİ-ÜFE (Headline PPI)",     "series_id": "TP.YUFE01",          "notes": "Yİ-ÜFE genel endeks" }
+    ]
+  },
+
+  "INDUSTRIES": {
+    "_comment": "Output/input PPI pairs for the Pricing Power Index. Each industry has output_series_id (what it charges) and input_series_id (what it pays). Turkish entries use input_basket arrays since TR does not publish matched output/input pairs — the fetcher will compute a simple-average index from those basket series.",
+    "items": [
+      { "id": "us_steel",        "market": "US", "label": "Iron & steel mills",
+        "output_series_id": "PCU331110331110", "input_series_id": "WPU101",
+        "notes": "NAICS 331110 — primary steel mfg." },
+
+      { "id": "us_auto_oem",     "market": "US", "label": "Auto: vehicle mfg (OEM)", "category": "auto",
+        "output_series_id": "PCU3361--3361--", "input_series_id": "WPUIP2310",
+        "notes": "NAICS 3361 — OEMs. Post-2021 ASPs ran far ahead of input costs." },
+
+      { "id": "us_auto_parts",   "market": "US", "label": "Auto: parts mfg (suppliers)", "category": "auto",
+        "output_series_id": "PCU3363--3363--", "input_series_id": "WPUIP2310",
+        "notes": "NAICS 3363 — tier-1/tier-2 suppliers." },
+
+      { "id": "us_auto_tires",   "market": "US", "label": "Auto: tire mfg", "category": "auto",
+        "output_series_id": "PCU326211326211", "input_series_id": "WPU07210105",
+        "notes": "NAICS 326211 — tire mfg. Inputs: rubber, carbon black, oil." },
+
+      { "id": "us_apparel",      "market": "US", "label": "Apparel mfg",
+        "output_series_id": "PCU315--315--", "input_series_id": "WPSID54",
+        "notes": "NAICS 315 — apparel mfg." },
+
+      { "id": "us_food_mfg",     "market": "US", "label": "Food manufacturing",
+        "output_series_id": "PCU311--311--", "input_series_id": "WPU01",
+        "notes": "NAICS 311." },
+
+      { "id": "us_restaurants",  "market": "US", "label": "Restaurants & food service",
+        "output_series_id": "PCU722--722--", "input_series_id": "WPU01",
+        "notes": "NAICS 722. Services-heavy: input PPI under-represents wage inflation." },
+
+      { "id": "us_airlines",     "market": "US", "label": "Air transportation",
+        "output_series_id": "PCU481--481--", "input_series_id": "WPU057303",
+        "notes": "NAICS 481. Fuel dominant." },
+
+      { "id": "us_construction", "market": "US", "label": "Construction",
+        "output_series_id": "PCU23--23----", "input_series_id": "WPUFD432",
+        "notes": "NAICS 23." },
+
+      { "id": "us_chemicals",    "market": "US", "label": "Chemical mfg",
+        "output_series_id": "PCU325--325--", "input_series_id": "WPU0613",
+        "notes": "NAICS 325." },
+
+      { "id": "us_pharma_prep",  "market": "US", "label": "Pharma: branded & generic Rx", "category": "pharma",
+        "output_series_id": "PCU325412325412", "input_series_id": "WPU0613",
+        "notes": "NAICS 325412 — pharmaceutical preparations." },
+
+      { "id": "us_pharma_diag",  "market": "US", "label": "Pharma: in-vitro diagnostics", "category": "pharma",
+        "output_series_id": "PCU325413325413", "input_series_id": "WPU0613",
+        "notes": "NAICS 325413 — diagnostic substances." },
+
+      { "id": "us_pharma_bio",   "market": "US", "label": "Pharma: biologics & vaccines", "category": "pharma",
+        "output_series_id": "PCU325414325414", "input_series_id": "WPU0613",
+        "notes": "NAICS 325414 — biological products." },
+
+      { "id": "us_software",     "market": "US", "label": "Software publishing",
+        "output_series_id": "PCU5112--5112--", "input_series_id": "CES5051120001",
+        "notes": "NAICS 5112. Input proxy = avg hourly earnings." },
+
+      { "id": "us_retail",       "market": "US", "label": "General merchandise retail",
+        "output_series_id": "PCU452--452--", "input_series_id": "WPSFD4",
+        "notes": "NAICS 452." },
+
+      { "id": "us_paper",        "market": "US", "label": "Paper & packaging mfg",
+        "output_series_id": "PCU322--322--", "input_series_id": "WPU0911",
+        "notes": "NAICS 322. Inputs: pulp." },
+
+      { "id": "tr_steel",        "market": "TR", "label": "Ana metal (Steel)", "approx": true,
+        "output_series_id": "TP.YUFE01.D24", "input_basket": ["TP.YUFE01.D19", "TP.YUFE01.D35"],
+        "notes": "NACE C24. Input derived: energy + fuel." },
+
+      { "id": "tr_auto_oem",     "market": "TR", "label": "Otomotiv: araç üretimi (OEM)", "approx": true, "category": "auto",
+        "output_series_id": "TP.YUFE01.D29.1", "input_basket": ["TP.YUFE01.D24", "TP.YUFE01.D22", "TP.YUFE01.D27"],
+        "notes": "NACE C29.1. Verify subseries availability." },
+
+      { "id": "tr_auto_parts",   "market": "TR", "label": "Otomotiv: parça üretimi", "approx": true, "category": "auto",
+        "output_series_id": "TP.YUFE01.D29.3", "input_basket": ["TP.YUFE01.D24", "TP.YUFE01.D22"],
+        "notes": "NACE C29.3. Verify." },
+
+      { "id": "tr_food_mfg",     "market": "TR", "label": "Gıda imalatı (Food)", "approx": true,
+        "output_series_id": "TP.YUFE01.D10", "input_basket": ["TP.YUFE01.A01", "TP.YUFE01.D17"],
+        "notes": "NACE C10." },
+
+      { "id": "tr_apparel",      "market": "TR", "label": "Tekstil & giyim (Apparel)", "approx": true,
+        "output_series_id": "TP.YUFE01.D13", "input_basket": ["TP.YUFE01.D13", "TP.YUFE01.D35"],
+        "notes": "NACE C13/C14." },
+
+      { "id": "tr_chemicals",    "market": "TR", "label": "Kimya (Chemicals)", "approx": true,
+        "output_series_id": "TP.YUFE01.D20", "input_basket": ["TP.YUFE01.D19", "TP.YUFE01.D35"],
+        "notes": "NACE C20." },
+
+      { "id": "tr_construction", "market": "TR", "label": "İnşaat (Construction)", "approx": true,
+        "output_series_id": "TP.IUFE01.F4", "input_basket": ["TP.YUFE01.D24", "TP.YUFE01.D23"],
+        "notes": "Construction PPI. Verify." },
+
+      { "id": "tr_pharma",       "market": "TR", "label": "İlaç (Pharmaceuticals)", "approx": true, "category": "pharma",
+        "output_series_id": "TP.YUFE01.D21", "input_basket": ["TP.YUFE01.D20"],
+        "notes": "NACE C21. Under SGK ceilings + Euro-referenced pricing." }
+    ]
+  }
+}

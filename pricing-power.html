@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pricing Power Index</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;700&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --ink: #0f0f0e;
+    --paper: #f4f1ea;
+    --paper-2: #ebe6da;
+    --rule: #2a2724;
+    --accent: #b8341e;
+    --accent-soft: #d4a373;
+    --positive: #1f5f3f;
+    --positive-soft: #6ba888;
+    --muted: #6b6660;
+    --grid: rgba(15, 15, 14, 0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter Tight', sans-serif; background: var(--paper); color: var(--ink); line-height: 1.5; min-height: 100vh; }
+
+  .masthead { border-bottom: 2px solid var(--ink); padding: 1.5rem 2rem 1rem; display: flex; justify-content: space-between; align-items: flex-end; gap: 2rem; }
+  .masthead-left { display: flex; flex-direction: column; gap: 0.25rem; }
+  .edition { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--muted); }
+  .masthead-title { font-family: 'Fraunces', serif; font-weight: 600; font-size: 2.6rem; line-height: 1; letter-spacing: -0.02em; }
+  .masthead-title em { font-style: italic; font-weight: 400; color: var(--accent); }
+  .masthead-right { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; text-align: right; color: var(--muted); line-height: 1.8; }
+  .masthead-right .live-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--positive); margin-right: 6px; animation: pulse 2s infinite; }
+  .masthead-right .live-dot.demo { background: var(--accent); }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .nav-strip { background: var(--ink); color: var(--paper); padding: 0.4rem 2rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; display: flex; gap: 1rem; }
+  .nav-strip a { color: rgba(244,241,234,0.5); text-decoration: none; padding: 0.2rem 0; transition: color 0.15s; }
+  .nav-strip a:hover, .nav-strip a.active { color: var(--paper); }
+  .nav-strip a.active { border-bottom: 1px solid var(--accent); }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 2rem; display: grid; grid-template-columns: 340px 1fr; gap: 2rem; }
+  @media (max-width: 900px) { .container { grid-template-columns: 1fr; } .masthead-title { font-size: 1.8rem; } }
+
+  .panel { background: var(--paper); border: 1px solid var(--rule); padding: 1.5rem; }
+  .panel-title { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--ink); padding-bottom: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+  .panel-title .step { color: var(--accent); font-weight: 700; }
+
+  .control-group { margin-bottom: 1.25rem; }
+  .control-label { display: flex; justify-content: space-between; align-items: baseline; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 0.4rem; }
+  .control-label .label-text { color: var(--ink); }
+  select, input[type="month"] { width: 100%; background: var(--paper-2); border: 1px solid var(--rule); padding: 0.6rem 0.75rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--ink); border-radius: 0; transition: background 0.15s; }
+  select:focus, input:focus { outline: none; background: var(--paper); border-color: var(--accent); }
+
+  .date-presets { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.75rem; }
+  .preset-btn { background: transparent; border: 1px solid var(--rule); padding: 0.35rem 0.6rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; cursor: pointer; color: var(--ink); transition: all 0.15s; }
+  .preset-btn:hover { background: var(--ink); color: var(--paper); }
+  .preset-btn.active { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+  .date-range-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+  .date-mini-label { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 0.25rem; }
+
+  .industry-checkboxes { max-height: 320px; overflow-y: auto; border: 1px solid var(--rule); background: var(--paper-2); padding: 0.5rem; }
+  .industry-row { display: flex; align-items: center; padding: 0.35rem 0.5rem; cursor: pointer; gap: 0.5rem; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; transition: background 0.15s; }
+  .industry-row:hover { background: var(--paper); }
+  .industry-row input[type="checkbox"] { width: 14px; height: 14px; flex: none; accent-color: var(--accent); }
+  .industry-row .label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .industry-row .approx-tag { font-size: 0.6rem; color: var(--accent); border: 1px solid var(--accent); padding: 0 0.3rem; letter-spacing: 0.05em; flex: none; }
+  .industry-row .cat-tag { font-size: 0.6rem; color: #6a4a7d; border: 1px solid #6a4a7d; padding: 0 0.3rem; letter-spacing: 0.05em; flex: none; }
+  .industry-row .cat-tag.auto { color: #2d5f8a; border-color: #2d5f8a; }
+  .rank-label .cat-tag { font-size: 0.6rem; color: #6a4a7d; border: 1px solid #6a4a7d; padding: 0 0.3rem; flex: none; }
+  .rank-label .cat-tag.auto { color: #2d5f8a; border-color: #2d5f8a; }
+
+  .industry-actions { display: flex; gap: 0.4rem; margin-top: 0.5rem; }
+  .industry-action-btn { flex: 1; background: transparent; border: 1px solid var(--rule); padding: 0.35rem; font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; cursor: pointer; color: var(--muted); transition: all 0.15s; }
+  .industry-action-btn:hover { color: var(--ink); border-color: var(--ink); }
+
+  /* Hero summary */
+  .hero-summary { grid-column: 1 / -1; background: var(--ink); color: var(--paper); padding: 2rem; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem; border: 1px solid var(--ink); }
+  @media (max-width: 900px) { .hero-summary { grid-template-columns: 1fr; gap: 1.5rem; } }
+  .hero-stat { display: flex; flex-direction: column; gap: 0.4rem; }
+  .hero-stat + .hero-stat { border-left: 1px solid rgba(244,241,234,0.15); padding-left: 2rem; }
+  @media (max-width: 900px) { .hero-stat + .hero-stat { border-left: none; border-top: 1px solid rgba(244,241,234,0.15); padding-left: 0; padding-top: 1.5rem; } }
+  .hero-stat-label { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--accent-soft); }
+  .hero-stat-value { font-family: 'Fraunces', serif; font-size: 2.2rem; font-weight: 500; line-height: 1.1; letter-spacing: -0.02em; }
+  .hero-stat-value strong { color: var(--positive-soft); }
+  .hero-stat-value .neg { color: var(--accent-soft); }
+  .hero-stat-context { font-family: 'Inter Tight', sans-serif; font-size: 0.85rem; color: rgba(244,241,234,0.7); }
+
+  /* Ranking chart */
+  .ranking { display: flex; flex-direction: column; gap: 0.4rem; }
+  .rank-row { display: grid; grid-template-columns: 220px 1fr 90px; gap: 0.75rem; align-items: center; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
+  @media (max-width: 700px) { .rank-row { grid-template-columns: 1fr; gap: 0.2rem; } .rank-row .rank-bar-cell { order: 3; } }
+  .rank-label { color: var(--ink); display: flex; align-items: center; gap: 0.4rem; overflow: hidden; }
+  .rank-label .approx-tag { font-size: 0.6rem; color: var(--accent); border: 1px solid var(--accent); padding: 0 0.3rem; letter-spacing: 0.05em; flex: none; }
+  .rank-label .market-tag { font-size: 0.6rem; color: var(--muted); border: 1px solid var(--muted); padding: 0 0.3rem; flex: none; }
+  .rank-bar-cell { position: relative; height: 22px; background: var(--paper-2); border: 1px solid var(--rule); }
+  .rank-bar-center { position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: var(--rule); }
+  .rank-bar-fill { position: absolute; top: 1px; bottom: 1px; transition: width 0.4s ease, left 0.4s ease; }
+  .rank-bar-fill.pos { background: var(--positive); left: 50%; }
+  .rank-bar-fill.neg { background: var(--accent); right: 50%; }
+  .rank-value { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .rank-value.pos { color: var(--positive); }
+  .rank-value.neg { color: var(--accent); }
+
+  /* Industry detail panel */
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+  @media (max-width: 700px) { .detail-grid { grid-template-columns: 1fr; } }
+  .detail-card { padding: 1rem; background: var(--paper-2); border-top: 3px solid var(--rule); }
+  .detail-card.output { border-top-color: var(--positive); }
+  .detail-card.input { border-top-color: var(--accent); }
+  .detail-card.spread { border-top-color: var(--ink); background: var(--ink); color: var(--paper); }
+  .detail-card-label { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); margin-bottom: 0.4rem; }
+  .detail-card.spread .detail-card-label { color: var(--accent-soft); }
+  .detail-card-value { font-family: 'Fraunces', serif; font-size: 2rem; font-weight: 500; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .detail-card-value .unit { font-size: 0.9rem; color: var(--muted); margin-left: 0.2rem; }
+  .detail-card.spread .detail-card-value .unit { color: var(--accent-soft); }
+
+  .chart-wrap { height: 260px; margin-top: 0.5rem; position: relative; }
+
+  .footer { border-top: 1px solid var(--rule); padding: 1.5rem 2rem; margin-top: 2rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+  .footer a { color: var(--accent); text-decoration: none; }
+
+  .note { font-size: 0.75rem; color: var(--muted); line-height: 1.5; margin-top: 0.5rem; font-style: italic; }
+  .divider-rule { border: none; border-top: 1px solid var(--rule); margin: 1.5rem 0; }
+  .data-banner { background: var(--paper-2); border: 1px solid var(--rule); padding: 0.6rem 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+  .data-banner.demo { background: rgba(184,52,30,0.08); border-color: var(--accent); color: var(--accent); }
+
+  .legend { display: flex; gap: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; margin-top: 0.75rem; color: var(--muted); }
+  .legend-swatch { display: inline-block; width: 12px; height: 12px; margin-right: 0.3rem; vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-left">
+    <div class="edition">VOL. I &nbsp;·&nbsp; COMMERCIAL FINANCE TOOLS &nbsp;·&nbsp; NO. 08</div>
+    <h1 class="masthead-title">Pricing <em>Power</em> Index</h1>
+  </div>
+  <div class="masthead-right">
+    <div id="dataStatus"><span class="live-dot demo"></span>Loading…</div>
+    <div id="lastUpdated">—</div>
+  </div>
+</header>
+
+<nav class="nav-strip">
+  <a href="./index.html">Pass-Through Calculator</a>
+  <a href="#" class="active">Pricing Power Index</a>
+  <a href="./fx-exposure.html">FX Exposure Simulator</a>
+</nav>
+
+<div class="container">
+
+  <aside>
+    <div class="panel">
+      <div class="panel-title"><span><span class="step">01</span> &nbsp;Markets</span></div>
+      <div class="control-group">
+        <div class="control-label"><span class="label-text">Include</span></div>
+        <label class="industry-row"><input type="checkbox" id="includeUS" checked /> <span class="label">United States · FRED</span></label>
+        <label class="industry-row"><input type="checkbox" id="includeTR" checked /> <span class="label">Türkiye · TÜİK</span> <span class="approx-tag">APPROX</span></label>
+        <p class="note" style="margin-top: 0.4rem;">Türkiye values use derived input baskets (no matched output/input pairs publicly available). Treat as directional.</p>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top: 1.5rem;">
+      <div class="panel-title"><span><span class="step">02</span> &nbsp;Industries</span><span id="industryCount">0 / 0</span></div>
+      <div class="industry-checkboxes" id="industryList"></div>
+      <div class="industry-actions">
+        <button class="industry-action-btn" id="selectAll">All</button>
+        <button class="industry-action-btn" id="selectNone">None</button>
+        <button class="industry-action-btn" id="selectUS">US only</button>
+        <button class="industry-action-btn" id="selectTR">TR only</button>
+        <button class="industry-action-btn" id="selectPharma">Pharma</button>
+        <button class="industry-action-btn" id="selectAuto">Auto</button>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top: 1.5rem;">
+      <div class="panel-title"><span><span class="step">03</span> &nbsp;Time Window</span><span id="rangeMonthsLabel">— months</span></div>
+      <div class="date-presets" id="datePresets">
+        <button class="preset-btn" data-months="3">3M</button>
+        <button class="preset-btn" data-months="6">6M</button>
+        <button class="preset-btn active" data-months="12">12M (YoY)</button>
+        <button class="preset-btn" data-months="24">24M</button>
+        <button class="preset-btn" data-months="36">36M</button>
+      </div>
+      <div class="date-range-grid">
+        <div>
+          <div class="date-mini-label">From</div>
+          <input type="month" id="fromDate" />
+        </div>
+        <div>
+          <div class="date-mini-label">To</div>
+          <input type="month" id="toDate" />
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top: 1.5rem;">
+      <div class="panel-title"><span><span class="step">04</span> &nbsp;Drill-Down</span></div>
+      <div class="control-group">
+        <div class="control-label"><span class="label-text">Industry to inspect</span></div>
+        <select id="drillIndustry"></select>
+        <p class="note">Detailed output vs. input chart appears in the main panel.</p>
+      </div>
+    </div>
+  </aside>
+
+  <main style="display: flex; flex-direction: column; gap: 2rem;">
+
+    <div id="dataBanner"></div>
+
+    <div class="hero-summary">
+      <div class="hero-stat">
+        <div class="hero-stat-label">Strongest pricing power</div>
+        <div class="hero-stat-value"><strong id="topIndustry">—</strong></div>
+        <div class="hero-stat-context" id="topIndustryCtx">Largest positive spread</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-label">Weakest pricing power</div>
+        <div class="hero-stat-value"><span class="neg" id="bottomIndustry">—</span></div>
+        <div class="hero-stat-context" id="bottomIndustryCtx">Largest negative spread</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-label">Industries in margin compression</div>
+        <div class="hero-stat-value" id="compressionCount">—</div>
+        <div class="hero-stat-context" id="compressionCtx">Negative spreads of selected set</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span>Pricing Power Spread by Industry</span><span id="rankWindow">12M</span></div>
+      <div class="ranking" id="ranking"></div>
+      <div class="legend">
+        <span><span class="legend-swatch" style="background: var(--positive);"></span>Positive spread = pricing power (output growing faster than input)</span>
+      </div>
+      <div class="legend">
+        <span><span class="legend-swatch" style="background: var(--accent);"></span>Negative spread = margin compression (input growing faster than output)</span>
+      </div>
+      <p class="note">Spread = (output PPI % change) − (input PPI % change) over the selected window, in percentage points.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span>Industry Detail</span><span id="detailIndustryName">—</span></div>
+
+      <div class="detail-grid">
+        <div class="detail-card output">
+          <div class="detail-card-label">Output PPI change</div>
+          <div class="detail-card-value" id="detailOutput">—<span class="unit">%</span></div>
+        </div>
+        <div class="detail-card input">
+          <div class="detail-card-label">Input PPI change</div>
+          <div class="detail-card-value" id="detailInput">—<span class="unit">%</span></div>
+        </div>
+        <div class="detail-card spread">
+          <div class="detail-card-label">Pricing power spread</div>
+          <div class="detail-card-value" id="detailSpread">—<span class="unit">pp</span></div>
+        </div>
+      </div>
+
+      <div class="chart-wrap"><canvas id="detailChart"></canvas></div>
+      <p class="note" id="detailNote" style="margin-top: 0.75rem;"></p>
+      <p class="note">Both series indexed to 100 at the start of the window. Gap between green (output) and red (input) is the cumulative pricing power story.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span>How to Read This</span></div>
+      <div style="font-size: 0.88rem; line-height: 1.6; color: var(--ink);">
+        <p style="margin-bottom: 0.6rem;"><strong>Pricing power</strong> = an industry's ability to raise prices faster than its input costs are rising.</p>
+        <p style="margin-bottom: 0.6rem;">When the spread is <strong style="color: var(--positive);">positive</strong>, the industry is expanding gross margins on average — output prices outpaced input prices over the window. When it's <strong style="color: var(--accent);">negative</strong>, the industry is absorbing input inflation faster than it can pass it through — margins are compressing.</p>
+        <p style="margin-bottom: 0.6rem;"><strong>Caveats:</strong> This measures industry averages, not individual firms. A well-managed company in a weak industry can still hold pricing power. Services industries also under-represent wage inflation since PPI input baskets focus on intermediate goods.</p>
+        <p><strong>Türkiye numbers are approximations</strong> — TÜİK does not publish matched output/input pairs, so input PPI is derived as a weighted basket of upstream cost categories per industry.</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<footer class="footer">
+  <div>Pricing Power Index · v0.1 prototype</div>
+  <div>Sources (production): FRED (US) · TCMB EVDS / TÜİK (TR)</div>
+</footer>
+
+<script>
+// ============================================================
+// DATA: Industries with output + input PPI series
+// In production, the same fetcher script populates this from FRED + TCMB
+// ============================================================
+
+// Helper: build an indexed series from starting value + array of monthly % changes
+function gen(start, pcts) {
+  const out = [start];
+  for (const p of pcts) out.push(out[out.length - 1] * (1 + p / 100));
+  return out;
+}
+
+// Sample monthly inflation patterns calibrated to plausible US recent dynamics
+// 36 months of data per series (so date ranges 3M / 12M / 24M / 36M all work)
+const DEMO_INDUSTRIES = [
+  // ----- UNITED STATES -----
+  {
+    id: 'us_steel', market: 'US', label: 'Iron & steel mills',
+    output_series_id: 'PCU331110331110', input_series_id: 'WPU101',
+    output: gen(100, [0.7,0.5,0.6,0.8,1.0,0.9,0.7,0.6,0.8,0.9,0.7,0.6,0.5,0.7,0.8,0.6,0.5,0.7,0.8,0.6,0.4,0.6,0.7,0.5,0.4,0.6,0.5,0.4,0.6,0.5,0.4,0.3,0.5,0.4,0.3,0.5]),
+    input:  gen(100, [0.4,0.2,-0.1,0.3,0.5,0.6,0.4,0.2,0.3,0.5,0.7,0.5,0.4,0.6,0.3,0.2,0.4,0.3,0.5,0.4,0.3,0.2,0.4,0.6,0.3,0.4,0.2,0.5,0.4,0.3,0.5,0.4,0.3,0.5,0.4,0.3])
+  },
+  {
+    id: 'us_auto_oem', market: 'US', label: 'Auto: vehicle mfg (OEM)', category: 'auto',
+    output_series_id: 'PCU3361--3361--', input_series_id: 'WPUIP2310',
+    notes: 'NAICS 3361 — motor vehicle manufacturing. OEMs (Ford, GM, Stellantis, Tesla, etc.). Post-2021 ASPs ran far ahead of input costs — strongest pricing power in the auto value chain.',
+    output: gen(100, [0.7,0.8,0.6,0.7,0.9,0.8,0.7,0.6,0.8,0.7,0.6,0.7,0.8,0.7,0.6,0.7,0.6,0.5,0.6,0.7,0.6,0.5,0.6,0.7,0.5,0.6,0.7,0.5,0.6,0.7,0.6,0.5,0.7,0.6,0.5,0.6]),
+    input:  gen(100, [0.5,0.4,0.3,0.6,0.7,0.4,0.3,0.5,0.6,0.4,0.5,0.6,0.4,0.3,0.5,0.6,0.4,0.5,0.7,0.4,0.3,0.5,0.6,0.4,0.4,0.5,0.3,0.6,0.4,0.5,0.4,0.3,0.5,0.4,0.3,0.5])
+  },
+  {
+    id: 'us_auto_parts', market: 'US', label: 'Auto: parts mfg (suppliers)', category: 'auto',
+    output_series_id: 'PCU3363--3363--', input_series_id: 'WPUIP2310',
+    notes: 'NAICS 3363 — motor vehicle parts (tier-1 and tier-2 suppliers selling to OEMs). The squeeze layer: input costs rising while OEMs hold the line on supplier prices. Margins under sustained pressure.',
+    output: gen(100, [0.3,0.4,0.3,0.4,0.5,0.3,0.4,0.3,0.4,0.4,0.3,0.4,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3]),
+    input:  gen(100, [0.6,0.5,0.4,0.7,0.8,0.5,0.4,0.6,0.7,0.5,0.6,0.7,0.5,0.4,0.6,0.7,0.5,0.6,0.8,0.5,0.4,0.6,0.7,0.5,0.5,0.6,0.4,0.7,0.5,0.6,0.5,0.4,0.6,0.5,0.4,0.6])
+  },
+  {
+    id: 'us_auto_tires', market: 'US', label: 'Auto: tire mfg', category: 'auto',
+    output_series_id: 'PCU326211326211', input_series_id: 'WPU07210105',
+    notes: 'NAICS 326211 — tire manufacturing. Inputs dominated by natural and synthetic rubber, carbon black, oil. Pricing power moderate: replacement-tire market gives leverage, OEM-tire market does not.',
+    output: gen(100, [0.5,0.4,0.5,0.6,0.5,0.4,0.5,0.6,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.6,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.4]),
+    input:  gen(100, [0.4,0.3,0.5,0.6,0.4,0.3,0.5,0.6,0.4,0.3,0.5,0.4,0.3,0.5,0.6,0.4,0.3,0.5,0.4,0.3,0.5,0.4,0.3,0.5,0.4,0.3,0.5,0.4,0.3,0.5,0.4,0.3,0.5,0.4,0.3,0.5])
+  },
+  {
+    id: 'us_apparel', market: 'US', label: 'Apparel mfg',
+    output_series_id: 'PCU315--315--', input_series_id: 'WPSID54',
+    output: gen(100, [0.2,0.3,0.2,0.1,0.2,0.3,0.2,0.1,0.2,0.3,0.2,0.1,0.2,0.3,0.2,0.1,0.2,0.3,0.2,0.1,0.2,0.2,0.1,0.2,0.2,0.1,0.2,0.3,0.2,0.1,0.2,0.2,0.1,0.2,0.2,0.1]),
+    input:  gen(100, [0.6,0.4,0.5,0.7,0.5,0.4,0.6,0.5,0.4,0.5,0.6,0.4,0.5,0.6,0.4,0.5,0.6,0.4,0.5,0.6,0.4,0.5,0.5,0.4,0.5,0.5,0.4,0.5,0.6,0.4,0.5,0.5,0.4,0.5,0.5,0.4])
+  },
+  {
+    id: 'us_food_mfg', market: 'US', label: 'Food manufacturing',
+    output_series_id: 'PCU311--311--', input_series_id: 'WPU01',
+    output: gen(100, [0.5,0.4,0.5,0.6,0.5,0.4,0.5,0.6,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.4]),
+    input:  gen(100, [0.3,0.5,0.6,0.4,0.3,0.5,0.6,0.4,0.3,0.5,0.6,0.4,0.3,0.5,0.6,0.4,0.3,0.5,0.6,0.4,0.3,0.5,0.5,0.4,0.3,0.5,0.5,0.4,0.3,0.5,0.5,0.4,0.3,0.5,0.5,0.4])
+  },
+  {
+    id: 'us_restaurants', market: 'US', label: 'Restaurants & food service',
+    output_series_id: 'PCU722--722--', input_series_id: 'WPU01',
+    output: gen(100, [0.3,0.3,0.2,0.3,0.3,0.2,0.3,0.3,0.2,0.3,0.3,0.2,0.3,0.3,0.2,0.3,0.3,0.2,0.3,0.3,0.2,0.3,0.3,0.2,0.3,0.3,0.2,0.3,0.3,0.2,0.3,0.3,0.2,0.3,0.3,0.2]),
+    input:  gen(100, [0.6,0.5,0.7,0.5,0.6,0.7,0.5,0.6,0.7,0.5,0.6,0.7,0.5,0.6,0.7,0.5,0.6,0.7,0.5,0.6,0.7,0.5,0.6,0.6,0.5,0.6,0.6,0.5,0.6,0.6,0.5,0.6,0.6,0.5,0.6,0.5])
+  },
+  {
+    id: 'us_airlines', market: 'US', label: 'Air transportation',
+    output_series_id: 'PCU481--481--', input_series_id: 'WPU057303',
+    output: gen(100, [0.8,1.0,-0.3,0.5,1.2,0.9,-0.5,0.7,1.4,0.8,-0.4,0.6,1.0,0.7,-0.3,0.5,0.9,0.6,-0.4,0.5,0.8,0.5,-0.3,0.4,0.7,0.5,-0.2,0.4,0.6,0.4,-0.2,0.3,0.5,0.4,-0.2,0.3]),
+    input:  gen(100, [1.2,-0.8,0.5,1.5,2.0,-1.2,0.8,1.5,-0.5,0.7,1.8,-0.6,0.9,1.2,-0.4,0.6,1.0,-0.5,0.8,1.4,-0.7,0.9,1.3,0.5,0.8,-0.4,0.6,1.0,-0.3,0.7,1.1,-0.5,0.4,0.9,-0.3,0.6])
+  },
+  {
+    id: 'us_construction', market: 'US', label: 'Construction',
+    output_series_id: 'PCU23--23----', input_series_id: 'WPUFD432',
+    output: gen(100, [0.5,0.4,0.5,0.6,0.5,0.4,0.5,0.6,0.5,0.4,0.5,0.6,0.5,0.4,0.5,0.6,0.5,0.4,0.5,0.6,0.5,0.4,0.5,0.5,0.4,0.5,0.5,0.4,0.5,0.5,0.4,0.5,0.5,0.4,0.5,0.4]),
+    input:  gen(100, [0.5,0.6,0.4,0.7,0.6,0.5,0.6,0.5,0.4,0.6,0.5,0.4,0.6,0.5,0.4,0.6,0.5,0.4,0.6,0.5,0.4,0.6,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.4,0.5,0.4])
+  },
+  {
+    id: 'us_chemicals', market: 'US', label: 'Chemical mfg',
+    output_series_id: 'PCU325--325--', input_series_id: 'WPU0613',
+    output: gen(100, [0.4,0.3,0.4,0.5,0.4,0.3,0.4,0.3,0.4,0.5,0.4,0.3,0.4,0.3,0.4,0.5,0.4,0.3,0.4,0.3,0.4,0.4,0.3,0.4,0.4,0.3,0.4,0.4,0.3,0.4,0.4,0.3,0.4,0.4,0.3,0.4]),
+    input:  gen(100, [-0.2,-0.1,0.2,0.3,0.4,0.2,-0.1,0.0,0.2,0.3,0.4,0.2,0.0,0.2,0.3,0.4,0.2,0.0,0.2,0.3,0.4,0.2,0.0,0.2,0.3,0.4,0.2,0.0,0.2,0.3,0.4,0.2,0.0,0.2,0.3,0.4])
+  },
+  {
+    id: 'us_pharma_prep', market: 'US', label: 'Pharma: branded & generic Rx', category: 'pharma',
+    output_series_id: 'PCU325412325412', input_series_id: 'WPU0613',
+    notes: 'NAICS 325412 — pharmaceutical preparations (finished dosage forms). Strongest pricing power segment due to patent protection and inelastic demand.',
+    output: gen(100, [0.5,0.6,0.5,0.6,0.5,0.6,0.5,0.6,0.5,0.6,0.5,0.6,0.5,0.6,0.5,0.6,0.5,0.6,0.5,0.6,0.5,0.6,0.5,0.6,0.5,0.6,0.5,0.6,0.5,0.6,0.5,0.6,0.5,0.6,0.5,0.6]),
+    input:  gen(100, [0.1,0.0,0.1,0.2,0.1,0.0,0.1,0.2,0.1,0.0,0.1,0.2,0.1,0.0,0.1,0.2,0.1,0.0,0.1,0.2,0.1,0.0,0.1,0.2,0.1,0.0,0.1,0.2,0.1,0.0,0.1,0.2,0.1,0.0,0.1,0.2])
+  },
+  {
+    id: 'us_pharma_diag', market: 'US', label: 'Pharma: in-vitro diagnostics', category: 'pharma',
+    output_series_id: 'PCU325413325413', input_series_id: 'WPU0613',
+    notes: 'NAICS 325413 — diagnostic substances (test kits, reagents). Moderate pricing power; more competitive than branded Rx.',
+    output: gen(100, [0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4]),
+    input:  gen(100, [0.1,0.0,0.1,0.2,0.1,0.0,0.1,0.2,0.1,0.0,0.1,0.2,0.1,0.0,0.1,0.2,0.1,0.0,0.1,0.2,0.1,0.0,0.1,0.2,0.1,0.0,0.1,0.2,0.1,0.0,0.1,0.2,0.1,0.0,0.1,0.2])
+  },
+  {
+    id: 'us_pharma_bio', market: 'US', label: 'Pharma: biologics & vaccines', category: 'pharma',
+    output_series_id: 'PCU325414325414', input_series_id: 'WPU0613',
+    notes: 'NAICS 325414 — biological products (vaccines, blood, biologics). Highest pricing power: complex manufacturing, limited substitutes, biosimilar barriers.',
+    output: gen(100, [0.6,0.7,0.6,0.7,0.6,0.7,0.6,0.7,0.6,0.7,0.6,0.7,0.6,0.7,0.6,0.7,0.6,0.7,0.6,0.7,0.6,0.7,0.6,0.7,0.6,0.7,0.6,0.7,0.6,0.7,0.6,0.7,0.6,0.7,0.6,0.7]),
+    input:  gen(100, [0.2,0.1,0.2,0.3,0.2,0.1,0.2,0.3,0.2,0.1,0.2,0.3,0.2,0.1,0.2,0.3,0.2,0.1,0.2,0.3,0.2,0.1,0.2,0.3,0.2,0.1,0.2,0.3,0.2,0.1,0.2,0.3,0.2,0.1,0.2,0.3])
+  },
+  {
+    id: 'tr_pharma', market: 'TR', label: 'İlaç (Pharmaceuticals)', approx: true, category: 'pharma',
+    output_series_id: 'TP.YUFE01.D21', input_series_id: 'derived',
+    notes: 'NACE C21. TR pharma operates under price ceilings (SGK) plus Euro-fixed reference pricing, so output PPI lags TRY depreciation — pricing power often appears weak even when industry is functional.',
+    output: gen(100, [2.5,2.8,2.6,3.0,3.2,2.8,2.5,2.9,3.1,2.7,2.5,2.9,3.3,3.0,2.7,2.5,2.8,3.0,3.3,2.9,2.6,3.0,3.3,3.0,2.6,2.8,2.7,2.5,2.8,3.0,2.6,2.5,2.9,2.7,2.5,2.8]),
+    input:  gen(100, [3.0,3.2,2.9,3.3,3.6,3.2,2.9,3.3,3.5,3.0,2.9,3.3,3.6,3.2,2.9,3.0,3.2,3.4,3.6,3.2,2.9,3.3,3.6,3.3,2.9,3.0,2.9,2.8,3.0,3.2,2.9,2.8,3.2,3.0,2.8,3.0])
+  },
+  {
+    id: 'us_software', market: 'US', label: 'Software publishing',
+    output_series_id: 'PCU5112--5112--', input_series_id: 'CES5051120001',
+    output: gen(100, [0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4,0.3,0.4]),
+    input:  gen(100, [0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5])
+  },
+  {
+    id: 'us_retail', market: 'US', label: 'General merchandise retail',
+    output_series_id: 'PCU452--452--', input_series_id: 'WPSFD4',
+    output: gen(100, [0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3]),
+    input:  gen(100, [0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4])
+  },
+  {
+    id: 'us_paper', market: 'US', label: 'Paper & packaging mfg',
+    output_series_id: 'PCU322--322--', input_series_id: 'WPU0911',
+    output: gen(100, [0.4,0.5,0.3,0.4,0.5,0.3,0.4,0.5,0.3,0.4,0.5,0.3,0.4,0.5,0.3,0.4,0.5,0.3,0.4,0.5,0.3,0.4,0.4,0.3,0.4,0.4,0.3,0.4,0.4,0.3,0.4,0.4,0.3,0.4,0.4,0.3]),
+    input:  gen(100, [0.5,0.4,0.3,0.4,0.5,0.3,0.2,0.3,0.4,0.3,0.5,0.4,0.3,0.4,0.5,0.3,0.2,0.4,0.3,0.5,0.4,0.3,0.4,0.5,0.3,0.4,0.5,0.3,0.4,0.3,0.5,0.4,0.3,0.4,0.3,0.4])
+  },
+
+  // ----- TÜRKİYE (approximated) -----
+  {
+    id: 'tr_steel', market: 'TR', label: 'Ana metal (Steel)', approx: true,
+    output_series_id: 'TP.YUFE01.D24', input_series_id: 'derived',
+    output: gen(100, [3.5,4.2,3.8,4.5,5.1,4.8,3.9,4.5,5.0,4.2,3.8,4.5,5.2,4.8,4.1,3.5,4.0,4.5,5.0,4.3,3.8,4.5,5.1,4.6,3.8,4.2,4.0,3.8,4.2,4.5,3.9,3.7,4.3,4.1,3.8,4.2]),
+    input:  gen(100, [3.8,3.5,4.0,4.2,4.5,4.0,3.5,4.0,4.3,3.8,3.5,4.0,4.5,4.0,3.7,3.5,3.8,4.0,4.5,4.0,3.5,4.0,4.5,4.2,3.5,3.8,3.7,3.5,3.8,4.0,3.6,3.5,4.0,3.8,3.5,3.8])
+  },
+  {
+    id: 'tr_auto_oem', market: 'TR', label: 'Otomotiv: araç üretimi (OEM)', approx: true, category: 'auto',
+    output_series_id: 'TP.YUFE01.D29.1', input_series_id: 'derived',
+    notes: 'NACE C29.1 — motor vehicle manufacturing. Turkey is a top-15 global auto producer (Ford Otosan, Tofaş, Toyota TR, Hyundai Assan). Export-heavy: output PPI partly reflects Euro-denominated contract pricing.',
+    output: gen(100, [4.5,5.0,4.7,5.3,5.6,5.0,4.5,5.0,5.4,4.8,4.5,5.0,5.7,5.2,4.7,4.3,4.8,5.2,5.5,5.0,4.5,5.2,5.7,5.2,4.5,4.8,4.6,4.3,4.8,5.0,4.5,4.3,4.8,4.5,4.3,4.7]),
+    input:  gen(100, [3.6,3.8,3.5,4.0,4.5,4.0,3.6,4.0,4.3,3.8,3.6,4.0,4.5,4.0,3.7,3.5,3.8,4.2,4.5,4.0,3.7,4.0,4.5,4.2,3.7,3.8,3.7,3.5,3.8,4.0,3.6,3.5,4.0,3.8,3.6,3.8])
+  },
+  {
+    id: 'tr_auto_parts', market: 'TR', label: 'Otomotiv: parça üretimi', approx: true, category: 'auto',
+    output_series_id: 'TP.YUFE01.D29.3', input_series_id: 'derived',
+    notes: 'NACE C29.3 — auto parts. ~1,000 Turkish suppliers feed both domestic OEMs and EU export markets. Margin pressure: domestic OEMs negotiate hard, EU OEMs demand productivity pass-back.',
+    output: gen(100, [3.8,4.2,4.0,4.5,4.8,4.3,3.8,4.3,4.6,4.0,3.8,4.3,4.8,4.3,4.0,3.7,4.0,4.3,4.6,4.3,3.8,4.3,4.7,4.3,3.8,4.0,3.8,3.7,4.0,4.2,3.8,3.7,4.0,3.8,3.7,4.0]),
+    input:  gen(100, [3.7,4.0,3.7,4.2,4.6,4.1,3.7,4.1,4.4,3.9,3.7,4.1,4.6,4.1,3.8,3.6,3.9,4.3,4.6,4.1,3.8,4.1,4.6,4.3,3.8,3.9,3.8,3.6,3.9,4.1,3.7,3.6,4.1,3.9,3.7,3.9])
+  },
+  {
+    id: 'tr_food_mfg', market: 'TR', label: 'Gıda imalatı (Food)', approx: true,
+    output_series_id: 'TP.YUFE01.D10', input_series_id: 'derived',
+    output: gen(100, [3.0,3.5,4.0,3.5,3.0,3.5,4.0,3.5,3.0,3.5,4.0,3.5,3.2,3.6,4.1,3.5,3.0,3.5,4.0,3.5,3.0,3.5,4.0,3.6,3.2,3.5,3.6,3.2,3.5,3.6,3.3,3.2,3.7,3.5,3.2,3.6]),
+    input:  gen(100, [3.5,4.0,4.5,4.0,3.5,4.0,4.5,4.0,3.5,4.0,4.5,4.0,3.7,4.1,4.6,4.0,3.5,4.0,4.5,4.0,3.5,4.0,4.5,4.1,3.7,4.0,4.1,3.7,4.0,4.1,3.8,3.7,4.2,4.0,3.7,4.1])
+  },
+  {
+    id: 'tr_apparel', market: 'TR', label: 'Tekstil & giyim (Apparel)', approx: true,
+    output_series_id: 'TP.YUFE01.D13', input_series_id: 'derived',
+    output: gen(100, [3.2,3.5,3.0,3.4,3.7,3.2,3.0,3.4,3.6,3.1,3.3,3.5,3.0,3.3,3.6,3.2,3.0,3.4,3.7,3.2,3.0,3.3,3.6,3.2,3.0,3.3,3.2,3.0,3.3,3.5,3.1,3.0,3.4,3.2,3.0,3.3]),
+    input:  gen(100, [3.5,3.8,3.3,3.6,4.0,3.5,3.3,3.7,3.9,3.4,3.6,3.8,3.3,3.6,3.9,3.5,3.3,3.7,4.0,3.5,3.3,3.6,3.9,3.5,3.3,3.6,3.5,3.3,3.6,3.8,3.4,3.3,3.7,3.5,3.3,3.6])
+  },
+  {
+    id: 'tr_chemicals', market: 'TR', label: 'Kimya (Chemicals)', approx: true,
+    output_series_id: 'TP.YUFE01.D20', input_series_id: 'derived',
+    output: gen(100, [3.3,3.6,3.5,3.7,3.8,3.5,3.4,3.7,3.8,3.5,3.4,3.7,3.9,3.6,3.5,3.4,3.6,3.8,3.9,3.6,3.5,3.7,3.8,3.6,3.5,3.6,3.5,3.4,3.6,3.7,3.5,3.4,3.7,3.6,3.5,3.6]),
+    input:  gen(100, [2.8,3.2,3.5,3.0,2.8,3.3,3.6,3.1,2.9,3.4,3.7,3.2,3.0,3.4,3.7,3.2,3.0,3.4,3.6,3.1,2.9,3.3,3.6,3.2,3.0,3.2,3.1,2.9,3.2,3.4,3.0,2.9,3.3,3.2,3.0,3.2])
+  },
+  {
+    id: 'tr_construction', market: 'TR', label: 'İnşaat (Construction)', approx: true,
+    output_series_id: 'TP.IUFE01.F4', input_series_id: 'derived',
+    output: gen(100, [3.8,4.0,3.7,4.2,4.5,4.0,3.7,4.2,4.5,3.9,3.7,4.2,4.6,4.0,3.7,3.8,4.0,4.2,4.5,4.0,3.7,4.2,4.5,4.0,3.7,4.0,3.8,3.7,4.0,4.2,3.8,3.7,4.1,3.9,3.7,4.0]),
+    input:  gen(100, [4.0,4.2,3.8,4.5,4.8,4.0,3.8,4.3,4.6,4.0,3.8,4.3,4.7,4.0,3.7,4.0,4.2,4.4,4.6,4.0,3.8,4.3,4.7,4.2,3.8,4.0,3.9,3.7,4.0,4.2,3.9,3.7,4.2,4.0,3.8,4.1])
+  },
+];
+
+// ============================================================
+// STATE
+// ============================================================
+// INDUSTRIES is populated at init: tries data/industries.json (live),
+// falls back to DEMO_INDUSTRIES if fetch fails (e.g. opened via file://)
+let INDUSTRIES = DEMO_INDUSTRIES;
+let DATA_MODE = 'demo';  // 'live' or 'demo'
+let DATA_LAST_UPDATED = null;
+
+let state = {
+  includeUS: true,
+  includeTR: true,
+  selectedIds: new Set(DEMO_INDUSTRIES.map(i => i.id)),
+  fromIdx: null,
+  toIdx: null,
+  drillId: 'us_pharma_prep'
+};
+let detailChartInstance = null;
+
+// ============================================================
+// HELPERS
+// ============================================================
+function maxSeriesLength() {
+  return Math.max(...INDUSTRIES.map(i => i.output.length));
+}
+
+function dateForIdx(idx) {
+  const len = maxSeriesLength();
+  if (len === 0) return null;
+  const now = new Date();
+  const monthsBack = (len - 1) - idx;
+  const d = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+function idxToYm(idx) {
+  const d = dateForIdx(idx);
+  return d ? d.slice(0, 7) : '';
+}
+
+function ymToIdx(ym) {
+  const len = maxSeriesLength();
+  if (!ym || len === 0) return null;
+  let bestIdx = 0, bestDiff = Infinity;
+  for (let i = 0; i < len; i++) {
+    const d = dateForIdx(i);
+    if (!d) continue;
+    const dYm = d.slice(0, 7);
+    const [ay, am] = dYm.split('-').map(Number);
+    const [by, bm] = ym.split('-').map(Number);
+    const diff = Math.abs((ay - by) * 12 + (am - bm));
+    if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+  }
+  return bestIdx;
+}
+
+function resolveRange() {
+  const len = maxSeriesLength();
+  if (len === 0) return { from: 0, to: 0, months: 0 };
+  const to = (state.toIdx === null) ? (len - 1) : Math.min(Math.max(state.toIdx, 0), len - 1);
+  const defaultFrom = Math.max(0, to - 12);
+  const from = (state.fromIdx === null) ? defaultFrom : Math.min(Math.max(state.fromIdx, 0), to - 1);
+  return { from, to, months: to - from };
+}
+
+function pctChange(series, from, to) {
+  if (!series || from >= series.length || to >= series.length) return 0;
+  const s = series[from], e = series[to];
+  if (!s) return 0;
+  return ((e - s) / s) * 100;
+}
+
+function fmtPct(n, withSign = true) {
+  if (Math.abs(n) < 0.05) return '0.0';
+  return (withSign && n >= 0 ? '+' : '') + n.toFixed(1);
+}
+
+// Industries currently visible (after market filter)
+function visibleIndustries() {
+  return INDUSTRIES.filter(i =>
+    (i.market === 'US' && state.includeUS) ||
+    (i.market === 'TR' && state.includeTR)
+  );
+}
+
+// Currently selected (visible AND checked)
+function selectedIndustries() {
+  return visibleIndustries().filter(i => state.selectedIds.has(i.id));
+}
+
+// Compute pricing power spread for an industry
+function computeSpread(ind, from, to) {
+  const outPct = pctChange(ind.output, from, to);
+  const inPct = pctChange(ind.input, from, to);
+  return { output: outPct, input: inPct, spread: outPct - inPct };
+}
+
+// ============================================================
+// RENDER: Industry list
+// ============================================================
+function renderIndustryList() {
+  const list = document.getElementById('industryList');
+  list.innerHTML = '';
+  const vis = visibleIndustries();
+  vis.forEach(ind => {
+    const row = document.createElement('label');
+    row.className = 'industry-row';
+    const checked = state.selectedIds.has(ind.id) ? 'checked' : '';
+    const catLabel = ind.category === 'pharma' ? 'Rx' : (ind.category === 'auto' ? 'Auto' : '');
+    row.innerHTML = `
+      <input type="checkbox" data-id="${ind.id}" ${checked} />
+      <span class="label">${ind.label}</span>
+      <span class="market-tag">${ind.market}</span>
+      ${catLabel ? `<span class="cat-tag ${ind.category}">${catLabel}</span>` : ''}
+      ${ind.approx ? '<span class="approx-tag">~</span>' : ''}
+    `;
+    row.querySelector('input').addEventListener('change', (e) => {
+      if (e.target.checked) state.selectedIds.add(ind.id);
+      else state.selectedIds.delete(ind.id);
+      renderAll();
+    });
+    list.appendChild(row);
+  });
+  document.getElementById('industryCount').textContent =
+    `${selectedIndustries().length} / ${vis.length}`;
+}
+
+// ============================================================
+// RENDER: Date controls
+// ============================================================
+function renderDateControls() {
+  const len = maxSeriesLength();
+  const fromInput = document.getElementById('fromDate');
+  const toInput = document.getElementById('toDate');
+  const label = document.getElementById('rangeMonthsLabel');
+  if (len === 0) return;
+  const minYm = idxToYm(0), maxYm = idxToYm(len - 1);
+  fromInput.min = minYm; fromInput.max = maxYm;
+  toInput.min = minYm; toInput.max = maxYm;
+  const { from, to, months } = resolveRange();
+  fromInput.value = idxToYm(from);
+  toInput.value = idxToYm(to);
+  label.textContent = months + (months === 1 ? ' month' : ' months');
+
+  const isLatest = (to === len - 1);
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.classList.remove('active');
+    const m = btn.dataset.months;
+    if (m && isLatest && parseInt(m) === months) btn.classList.add('active');
+  });
+
+  document.getElementById('rankWindow').textContent = months + 'M';
+}
+
+// ============================================================
+// RENDER: Drill industry dropdown
+// ============================================================
+function renderDrillDropdown() {
+  const sel = document.getElementById('drillIndustry');
+  const vis = visibleIndustries();
+  sel.innerHTML = '';
+  vis.forEach(ind => {
+    const opt = document.createElement('option');
+    opt.value = ind.id;
+    opt.textContent = `[${ind.market}] ${ind.label}${ind.approx ? ' (approx)' : ''}`;
+    if (ind.id === state.drillId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  // If current drill is hidden, switch to first visible
+  if (!vis.find(i => i.id === state.drillId) && vis.length > 0) {
+    state.drillId = vis[0].id;
+    sel.value = vis[0].id;
+  }
+}
+
+// ============================================================
+// RENDER: Hero summary
+// ============================================================
+function renderHero() {
+  const { from, to } = resolveRange();
+  const selected = selectedIndustries();
+  if (selected.length === 0) {
+    document.getElementById('topIndustry').textContent = '—';
+    document.getElementById('bottomIndustry').textContent = '—';
+    document.getElementById('compressionCount').textContent = '—';
+    document.getElementById('topIndustryCtx').textContent = 'Select at least one industry';
+    document.getElementById('bottomIndustryCtx').textContent = '';
+    document.getElementById('compressionCtx').textContent = '';
+    return;
+  }
+  const ranked = selected.map(i => ({ ...i, ...computeSpread(i, from, to) }))
+                          .sort((a, b) => b.spread - a.spread);
+  const top = ranked[0], bottom = ranked[ranked.length - 1];
+  const compressed = ranked.filter(r => r.spread < 0);
+
+  document.getElementById('topIndustry').textContent = top.label;
+  document.getElementById('topIndustryCtx').textContent = `+${top.spread.toFixed(1)}pp spread · ${top.market}${top.approx ? ' (approx)' : ''}`;
+
+  document.getElementById('bottomIndustry').textContent = bottom.label;
+  document.getElementById('bottomIndustryCtx').textContent = `${bottom.spread.toFixed(1)}pp spread · ${bottom.market}${bottom.approx ? ' (approx)' : ''}`;
+
+  document.getElementById('compressionCount').textContent = `${compressed.length} / ${ranked.length}`;
+  document.getElementById('compressionCtx').textContent = compressed.length === 0
+    ? 'All selected industries have pricing power'
+    : `${Math.round(compressed.length / ranked.length * 100)}% of selected set`;
+}
+
+// ============================================================
+// RENDER: Ranking bars
+// ============================================================
+function renderRanking() {
+  const { from, to } = resolveRange();
+  const wrap = document.getElementById('ranking');
+  wrap.innerHTML = '';
+  const selected = selectedIndustries();
+  if (selected.length === 0) {
+    wrap.innerHTML = '<p class="note">Select at least one industry to see the ranking.</p>';
+    return;
+  }
+  const ranked = selected.map(i => ({ ...i, ...computeSpread(i, from, to) }))
+                          .sort((a, b) => b.spread - a.spread);
+  const maxAbs = Math.max(...ranked.map(r => Math.abs(r.spread)), 0.5);
+
+  ranked.forEach(r => {
+    const row = document.createElement('div'); row.className = 'rank-row';
+    const isPos = r.spread >= 0;
+    const widthPct = (Math.abs(r.spread) / maxAbs) * 50; // half the bar = full max
+    const catLabel = r.category === 'pharma' ? 'Rx' : (r.category === 'auto' ? 'Auto' : '');
+    row.innerHTML = `
+      <div class="rank-label">
+        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r.label}</span>
+        <span class="market-tag">${r.market}</span>
+        ${catLabel ? `<span class="cat-tag ${r.category}">${catLabel}</span>` : ''}
+        ${r.approx ? '<span class="approx-tag">~</span>' : ''}
+      </div>
+      <div class="rank-bar-cell">
+        <div class="rank-bar-center"></div>
+        <div class="rank-bar-fill ${isPos ? 'pos' : 'neg'}" style="width: ${widthPct}%;"></div>
+      </div>
+      <div class="rank-value ${isPos ? 'pos' : 'neg'}">${isPos ? '+' : ''}${r.spread.toFixed(1)}pp</div>
+    `;
+    wrap.appendChild(row);
+  });
+}
+
+// ============================================================
+// RENDER: Industry detail panel + chart
+// ============================================================
+function renderDetail() {
+  const ind = INDUSTRIES.find(i => i.id === state.drillId);
+  if (!ind) return;
+  const { from, to } = resolveRange();
+  const { output, input, spread } = computeSpread(ind, from, to);
+
+  document.getElementById('detailIndustryName').textContent = `${ind.label} · ${ind.market}${ind.approx ? ' (approx)' : ''}`;
+  document.getElementById('detailOutput').innerHTML = fmtPct(output) + '<span class="unit">%</span>';
+  document.getElementById('detailInput').innerHTML = fmtPct(input) + '<span class="unit">%</span>';
+  document.getElementById('detailSpread').innerHTML = fmtPct(spread) + '<span class="unit">pp</span>';
+  document.getElementById('detailNote').textContent = ind.notes || '';
+
+  // Chart: both series indexed to 100 at "from"
+  const labels = [], outNorm = [], inNorm = [];
+  const oBase = ind.output[from], iBase = ind.input[from];
+  for (let i = from; i <= to; i++) {
+    labels.push(idxToYm(i));
+    outNorm.push(oBase ? (ind.output[i] / oBase) * 100 : 100);
+    inNorm.push(iBase ? (ind.input[i] / iBase) * 100 : 100);
+  }
+
+  if (detailChartInstance) detailChartInstance.destroy();
+  const ctx = document.getElementById('detailChart').getContext('2d');
+  detailChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Output PPI', data: outNorm, borderColor: '#1f5f3f', backgroundColor: 'rgba(31,95,63,0.08)', fill: '+1', tension: 0.25, borderWidth: 2.5, pointRadius: 0 },
+        { label: 'Input PPI', data: inNorm, borderColor: '#b8341e', backgroundColor: 'rgba(184,52,30,0.08)', fill: false, tension: 0.25, borderWidth: 2.5, pointRadius: 0 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', align: 'end', labels: { font: { family: 'JetBrains Mono', size: 11 }, color: '#0f0f0e', boxWidth: 14, boxHeight: 2 } },
+        tooltip: { backgroundColor: '#0f0f0e', titleFont: { family: 'JetBrains Mono', size: 11 }, bodyFont: { family: 'JetBrains Mono', size: 11 },
+                   callbacks: { label: (ctx) => ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) } }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(15,15,14,0.05)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#6b6660', maxTicksLimit: 8 } },
+        y: { grid: { color: 'rgba(15,15,14,0.08)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#6b6660' } }
+      }
+    }
+  });
+}
+
+// ============================================================
+// RENDER ALL
+// ============================================================
+function renderAll() {
+  renderIndustryList();
+  renderDateControls();
+  renderDrillDropdown();
+  renderHero();
+  renderRanking();
+  renderDetail();
+  // Status banner
+  if (DATA_MODE === 'live') {
+    document.getElementById('dataStatus').innerHTML = '<span class="live-dot"></span>Live data';
+    document.getElementById('lastUpdated').textContent = `Updated: ${DATA_LAST_UPDATED || '—'}`;
+    document.getElementById('dataBanner').innerHTML =
+      `<div class="data-banner"><span>Live data from FRED + TCMB · last refresh ${DATA_LAST_UPDATED || '—'}</span><span>${INDUSTRIES.length} industries</span></div>`;
+  } else {
+    document.getElementById('dataStatus').innerHTML = '<span class="live-dot demo"></span>Demo mode';
+    document.getElementById('lastUpdated').textContent = 'Sample data';
+    document.getElementById('dataBanner').innerHTML =
+      '<div class="data-banner demo"><span>Demo data — wire up data/industries.json via the GitHub Action for live values</span><span>' + INDUSTRIES.length + ' industries</span></div>';
+  }
+}
+
+// ============================================================
+// EVENTS
+// ============================================================
+document.getElementById('includeUS').addEventListener('change', (e) => { state.includeUS = e.target.checked; renderAll(); });
+document.getElementById('includeTR').addEventListener('change', (e) => { state.includeTR = e.target.checked; renderAll(); });
+
+document.getElementById('selectAll').addEventListener('click', () => {
+  visibleIndustries().forEach(i => state.selectedIds.add(i.id));
+  renderAll();
+});
+document.getElementById('selectNone').addEventListener('click', () => {
+  visibleIndustries().forEach(i => state.selectedIds.delete(i.id));
+  renderAll();
+});
+document.getElementById('selectUS').addEventListener('click', () => {
+  state.selectedIds = new Set(INDUSTRIES.filter(i => i.market === 'US').map(i => i.id));
+  renderAll();
+});
+document.getElementById('selectTR').addEventListener('click', () => {
+  state.selectedIds = new Set(INDUSTRIES.filter(i => i.market === 'TR').map(i => i.id));
+  renderAll();
+});
+document.getElementById('selectPharma').addEventListener('click', () => {
+  state.selectedIds = new Set(INDUSTRIES.filter(i => i.category === 'pharma').map(i => i.id));
+  // Also auto-drill into first pharma industry
+  const firstPharma = INDUSTRIES.find(i => i.category === 'pharma');
+  if (firstPharma) state.drillId = firstPharma.id;
+  renderAll();
+});
+document.getElementById('selectAuto').addEventListener('click', () => {
+  state.selectedIds = new Set(INDUSTRIES.filter(i => i.category === 'auto').map(i => i.id));
+  const firstAuto = INDUSTRIES.find(i => i.category === 'auto');
+  if (firstAuto) state.drillId = firstAuto.id;
+  renderAll();
+});
+
+document.getElementById('fromDate').addEventListener('change', (e) => {
+  state.fromIdx = ymToIdx(e.target.value);
+  renderAll();
+});
+document.getElementById('toDate').addEventListener('change', (e) => {
+  state.toIdx = ymToIdx(e.target.value);
+  const { from, to } = resolveRange();
+  if (from >= to) state.fromIdx = Math.max(0, to - 12);
+  renderAll();
+});
+
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const len = maxSeriesLength();
+    const m = parseInt(btn.dataset.months);
+    if (!m) return;
+    state.toIdx = len - 1;
+    state.fromIdx = Math.max(0, (len - 1) - m);
+    renderAll();
+  });
+});
+
+document.getElementById('drillIndustry').addEventListener('change', (e) => {
+  state.drillId = e.target.value;
+  renderDetail();
+});
+
+// ============================================================
+// INIT — try to load live data, fall back to demo
+// ============================================================
+async function loadIndustriesData() {
+  try {
+    const resp = await fetch('./data/industries.json', { cache: 'no-store' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    if (!data.items || data.items.length === 0) throw new Error('Empty items');
+    INDUSTRIES = data.items;
+    DATA_MODE = 'live';
+    DATA_LAST_UPDATED = data.last_updated;
+    state.selectedIds = new Set(INDUSTRIES.map(i => i.id));
+    // Reset drill target if previously-default id is missing in live data
+    if (!INDUSTRIES.find(i => i.id === state.drillId)) {
+      state.drillId = INDUSTRIES[0]?.id || state.drillId;
+    }
+  } catch (e) {
+    console.warn('Falling back to demo industries:', e.message);
+    INDUSTRIES = DEMO_INDUSTRIES;
+    DATA_MODE = 'demo';
+  }
+}
+
+(async function init() {
+  await loadIndustriesData();
+  renderAll();
+})();
+</script>
+</body>
+</html>

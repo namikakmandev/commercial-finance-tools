@@ -1,0 +1,43 @@
+name: Refresh Inflation Data
+
+# When to run:
+#  - Automatic: 15th of every month at 14:00 UTC (PPI usually released ~10th–15th)
+#  - Manual: trigger anytime from the Actions tab via "Run workflow"
+on:
+  schedule:
+    - cron: '0 14 15 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to commit the refreshed JSON back to the repo
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Fetch FRED + TCMB series
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          TCMB_API_KEY: ${{ secrets.TCMB_API_KEY }}
+        run: |
+          python scripts/fetch_data.py
+
+      - name: Commit updated data
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/us.json data/tr.json
+          if git diff --staged --quiet; then
+            echo "No data changes — nothing to commit."
+          else
+            git commit -m "chore(data): monthly inflation refresh $(date -u +%Y-%m-%d)"
+            git push
+          fi

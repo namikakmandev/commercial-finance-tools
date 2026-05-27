@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Inflation Pass-Through Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;700&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --ink: #0f0f0e;
+    --paper: #f4f1ea;
+    --paper-2: #ebe6da;
+    --rule: #2a2724;
+    --accent: #b8341e;
+    --accent-soft: #d4a373;
+    --positive: #1f5f3f;
+    --muted: #6b6660;
+    --grid: rgba(15, 15, 14, 0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter Tight', sans-serif; background: var(--paper); color: var(--ink); line-height: 1.5; min-height: 100vh; }
+
+  .masthead { border-bottom: 2px solid var(--ink); padding: 1.5rem 2rem 1rem; display: flex; justify-content: space-between; align-items: flex-end; gap: 2rem; }
+  .masthead-left { display: flex; flex-direction: column; gap: 0.25rem; }
+  .edition { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--muted); }
+  .masthead-title { font-family: 'Fraunces', serif; font-weight: 600; font-size: 2.6rem; line-height: 1; letter-spacing: -0.02em; }
+  .masthead-title em { font-style: italic; font-weight: 400; color: var(--accent); }
+  .masthead-right { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; text-align: right; color: var(--muted); line-height: 1.8; }
+  .masthead-right .live-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--positive); margin-right: 6px; animation: pulse 2s infinite; }
+  .masthead-right .live-dot.demo { background: var(--accent); }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .nav-strip { background: var(--ink); color: var(--paper); padding: 0.4rem 2rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; display: flex; gap: 1rem; }
+  .nav-strip a { color: rgba(244,241,234,0.5); text-decoration: none; padding: 0.2rem 0; transition: color 0.15s; }
+  .nav-strip a:hover, .nav-strip a.active { color: var(--paper); }
+  .nav-strip a.active { border-bottom: 1px solid var(--accent); }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 2rem; display: grid; grid-template-columns: 380px 1fr; gap: 2rem; }
+  @media (max-width: 900px) { .container { grid-template-columns: 1fr; } .masthead-title { font-size: 1.8rem; } }
+
+  .panel { background: var(--paper); border: 1px solid var(--rule); padding: 1.5rem; }
+  .panel-title { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--ink); padding-bottom: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: baseline; }
+  .panel-title .step { color: var(--accent); font-weight: 700; }
+
+  .control-group { margin-bottom: 1.25rem; }
+  .control-label { display: flex; justify-content: space-between; align-items: baseline; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 0.4rem; }
+  .control-label .label-text { color: var(--ink); }
+  select, input[type="number"], input[type="text"] { width: 100%; background: var(--paper-2); border: 1px solid var(--rule); padding: 0.6rem 0.75rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--ink); border-radius: 0; transition: background 0.15s; }
+  select:focus, input:focus { outline: none; background: var(--paper); border-color: var(--accent); }
+
+  .bucket-row { display: grid; grid-template-columns: 1fr 80px 28px; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+  .bucket-row select { font-size: 0.78rem; padding: 0.5rem; }
+  .bucket-row input { text-align: right; padding: 0.5rem; font-size: 0.85rem; }
+  .bucket-remove { background: transparent; border: 1px solid var(--rule); width: 28px; height: 32px; cursor: pointer; font-family: 'JetBrains Mono', monospace; color: var(--muted); transition: all 0.15s; }
+  .bucket-remove:hover { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+
+  .add-bucket { width: 100%; background: transparent; border: 1px dashed var(--rule); padding: 0.6rem; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); cursor: pointer; margin-top: 0.5rem; transition: all 0.15s; }
+  .add-bucket:hover { color: var(--ink); border-color: var(--ink); border-style: solid; }
+
+  /* Date range controls */
+  .date-presets { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.75rem; }
+  .preset-btn, .preset-btn-b { background: transparent; border: 1px solid var(--rule); padding: 0.35rem 0.6rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; cursor: pointer; color: var(--ink); transition: all 0.15s; }
+  .preset-btn:hover { background: var(--ink); color: var(--paper); }
+  .preset-btn.active { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+  .preset-btn-b:hover { background: var(--ink); color: var(--paper); }
+  .preset-btn-b.active { background: #2d5f8a; color: var(--paper); border-color: #2d5f8a; }
+  .date-range-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+  .date-mini-label { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 0.25rem; }
+  input[type="month"] { width: 100%; background: var(--paper-2); border: 1px solid var(--rule); padding: 0.5rem 0.6rem; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--ink); border-radius: 0; }
+  input[type="month"]:focus { outline: none; background: var(--paper); border-color: var(--accent); }
+  .range-warning { margin-top: 0.5rem; padding: 0.5rem 0.6rem; background: rgba(184, 52, 30, 0.08); border-left: 2px solid var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--accent); line-height: 1.4; }
+
+  /* Toggle switch */
+  .toggle-switch { position: relative; display: inline-block; width: 38px; height: 20px; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: var(--paper-2); border: 1px solid var(--rule); transition: 0.2s; }
+  .toggle-slider:before { position: absolute; content: ""; height: 12px; width: 12px; left: 2px; bottom: 2px; background: var(--ink); transition: 0.2s; }
+  .toggle-switch input:checked + .toggle-slider { background: var(--accent); border-color: var(--accent); }
+  .toggle-switch input:checked + .toggle-slider:before { transform: translateX(18px); background: var(--paper); }
+
+  /* Period tags */
+  .period-tag { display: inline-block; padding: 0.1rem 0.4rem; font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; border: 1px solid currentColor; }
+  .period-tag.a { color: var(--accent); }
+  .period-tag.b { color: #2d5f8a; }
+  .period-tag.delta { color: var(--ink); }
+
+  /* Compare panel */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+  @media (max-width: 700px) { .compare-grid { grid-template-columns: 1fr; gap: 0.75rem; } }
+  .compare-card { padding: 1rem; background: var(--paper-2); border-top: 3px solid var(--rule); display: flex; flex-direction: column; gap: 0.35rem; }
+  .compare-card.a { border-top-color: var(--accent); }
+  .compare-card.b { border-top-color: #2d5f8a; }
+  .compare-card.delta { border-top-color: var(--ink); background: var(--ink); color: var(--paper); }
+  .compare-card-tag { margin-bottom: 0.25rem; }
+  .compare-card.delta .period-tag { color: var(--accent-soft); }
+  .compare-card-range { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .compare-card.delta .compare-card-range { color: var(--accent-soft); }
+  .compare-card-value { font-family: 'Fraunces', serif; font-size: 2.4rem; font-weight: 500; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .compare-card-value .unit { font-size: 1rem; color: var(--muted); margin-left: 0.2rem; }
+  .compare-card.delta .compare-card-value .unit { color: var(--accent-soft); }
+  .compare-card-meta { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--muted); }
+  .compare-card.delta .compare-card-meta { color: rgba(244, 241, 234, 0.6); }
+  .compare-value-up { color: var(--accent); }
+  .compare-value-down { color: var(--positive); }
+
+  .compare-table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
+  .compare-table th, .compare-table td { padding: 0.55rem 0.5rem; text-align: right; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+  .compare-table th { text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.1em; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--rule); }
+  .compare-table th:first-child, .compare-table td:first-child { text-align: left; }
+  .compare-table tbody tr:hover { background: var(--paper-2); }
+  .compare-table .delta-up { color: var(--accent); font-weight: 700; }
+  .compare-table .delta-down { color: var(--positive); font-weight: 700; }
+
+  .weight-summary { display: flex; justify-content: space-between; align-items: baseline; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px dotted var(--rule); font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; }
+  .weight-summary .total { font-weight: 700; }
+  .weight-summary .total.error { color: var(--accent); }
+  .weight-summary .total.ok { color: var(--positive); }
+
+  .hero-result { grid-column: 1 / -1; background: var(--ink); color: var(--paper); padding: 2.5rem 2rem; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem; border: 1px solid var(--ink); }
+  @media (max-width: 900px) { .hero-result { grid-template-columns: 1fr; gap: 1.5rem; } }
+  .hero-stat { display: flex; flex-direction: column; gap: 0.5rem; }
+  .hero-stat + .hero-stat { border-left: 1px solid rgba(244, 241, 234, 0.15); padding-left: 2rem; }
+  @media (max-width: 900px) { .hero-stat + .hero-stat { border-left: none; border-top: 1px solid rgba(244, 241, 234, 0.15); padding-left: 0; padding-top: 1.5rem; } }
+  .hero-stat-label { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--accent-soft); }
+  .hero-stat-value { font-family: 'Fraunces', serif; font-size: 3.5rem; font-weight: 500; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+  .hero-stat-value .unit { font-size: 1.5rem; color: var(--accent-soft); margin-left: 0.25rem; }
+  .hero-stat-context { font-family: 'Inter Tight', sans-serif; font-size: 0.85rem; color: rgba(244, 241, 234, 0.7); margin-top: 0.25rem; }
+  .hero-stat.headline .hero-stat-value { color: var(--paper); }
+  .hero-stat.critical .hero-stat-value { color: var(--accent-soft); }
+
+  .right-column { display: flex; flex-direction: column; gap: 2rem; }
+
+  .contribution-list { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.5rem; }
+  .contrib-row { display: grid; grid-template-columns: 160px 1fr 70px; gap: 0.75rem; align-items: center; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
+  .contrib-label { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .contrib-bar-track { background: var(--paper-2); height: 18px; position: relative; border: 1px solid var(--rule); }
+  .contrib-bar-fill { background: var(--accent); height: 100%; transition: width 0.5s ease; }
+  .contrib-bar-fill.neg { background: var(--positive); }
+  .contrib-value { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .contrib-value.neg { color: var(--positive); }
+
+  .sensitivity-table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; margin-top: 0.5rem; }
+  .sensitivity-table th, .sensitivity-table td { padding: 0.6rem 0.5rem; text-align: right; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+  .sensitivity-table th { text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.1em; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--rule); }
+  .sensitivity-table th:first-child, .sensitivity-table td:first-child { text-align: left; }
+  .sensitivity-table tbody tr:hover { background: var(--paper-2); }
+  .sensitivity-table .highlight { color: var(--accent); font-weight: 700; }
+
+  .chart-wrap { height: 280px; margin-top: 0.5rem; position: relative; }
+
+  .templates { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+  .template-btn { background: transparent; border: 1px solid var(--rule); padding: 0.4rem 0.75rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; cursor: pointer; color: var(--ink); transition: all 0.15s; }
+  .template-btn:hover { background: var(--ink); color: var(--paper); }
+  .template-btn.active { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+
+  .footer { border-top: 1px solid var(--rule); padding: 1.5rem 2rem; margin-top: 2rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+
+  .note { font-size: 0.75rem; color: var(--muted); line-height: 1.5; margin-top: 0.5rem; font-style: italic; }
+  .divider-rule { border: none; border-top: 1px solid var(--rule); margin: 1.5rem 0; }
+
+  .loading-state { padding: 3rem 2rem; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--muted); }
+
+  .data-banner { background: var(--paper-2); border: 1px solid var(--rule); padding: 0.6rem 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; }
+  .data-banner.demo { background: rgba(184, 52, 30, 0.08); border-color: var(--accent); color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-left">
+    <div class="edition">VOL. I &nbsp;·&nbsp; COMMERCIAL FINANCE TOOLS &nbsp;·&nbsp; NO. 07</div>
+    <h1 class="masthead-title">Inflation <em>Pass-Through</em> Calculator</h1>
+  </div>
+  <div class="masthead-right">
+    <div id="dataStatus"><span class="live-dot"></span>Loading…</div>
+    <div id="lastUpdated">—</div>
+  </div>
+</header>
+
+<nav class="nav-strip">
+  <a href="#" class="active">Pass-Through Calculator</a>
+  <a href="./pricing-power.html">Pricing Power Index</a>
+  <a href="./fx-exposure.html">FX Exposure Simulator</a>
+</nav>
+
+<div class="container">
+
+  <aside>
+    <div class="panel">
+      <div class="panel-title"><span><span class="step">01</span> &nbsp;Cost Structure</span><span id="bucketCount">0 buckets</span></div>
+
+      <div class="control-group">
+        <div class="control-label"><span class="label-text">Market</span></div>
+        <select id="market">
+          <option value="US">United States · FRED</option>
+          <option value="TR">Türkiye · TCMB/TÜİK</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <div class="control-label"><span class="label-text">Industry template</span></div>
+        <div class="templates" id="templates"></div>
+      </div>
+
+      <hr class="divider-rule" />
+
+      <div class="control-label"><span class="label-text">Cost buckets (% of COGS)</span></div>
+      <div id="bucketList"></div>
+      <button class="add-bucket" id="addBucket">+ Add cost bucket</button>
+
+      <div class="weight-summary">
+        <span>Total weight</span>
+        <span class="total" id="weightTotal">0%</span>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top: 1.5rem;">
+      <div class="panel-title"><span><span class="step">02</span> &nbsp;Margin Baseline</span></div>
+
+      <div class="control-group">
+        <div class="control-label"><span class="label-text">Current gross margin</span><span id="gmDisplay">35%</span></div>
+        <input type="number" id="grossMargin" value="35" min="0" max="95" step="1" />
+      </div>
+
+      <div class="control-group">
+        <div class="control-label">
+          <span class="label-text"><span id="periodALabel">Comparison period</span></span>
+          <span id="rangeMonthsLabel">— months</span>
+        </div>
+        <div class="date-presets" id="datePresets">
+          <button class="preset-btn" data-months="3">3M</button>
+          <button class="preset-btn" data-months="6">6M</button>
+          <button class="preset-btn active" data-months="12">12M (YoY)</button>
+          <button class="preset-btn" data-months="24">24M</button>
+          <button class="preset-btn" data-months="36">36M</button>
+          <button class="preset-btn" data-ytd="1">YTD</button>
+        </div>
+        <div class="date-range-grid">
+          <div>
+            <div class="date-mini-label">From</div>
+            <input type="month" id="fromDate" />
+          </div>
+          <div>
+            <div class="date-mini-label">To</div>
+            <input type="month" id="toDate" />
+          </div>
+        </div>
+        <div id="rangeWarning" class="range-warning" style="display: none;"></div>
+      </div>
+
+      <hr class="divider-rule" />
+
+      <div class="control-group">
+        <div class="control-label">
+          <span class="label-text">Compare two periods</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="compareToggle" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div id="periodBSection" style="display: none;">
+        <div class="control-group">
+          <div class="control-label">
+            <span class="label-text"><span class="period-tag b">Period B</span></span>
+            <span id="rangeMonthsLabelB">— months</span>
+          </div>
+          <div class="date-presets" id="datePresetsB">
+            <button class="preset-btn-b" data-months="3">3M</button>
+            <button class="preset-btn-b" data-months="6">6M</button>
+            <button class="preset-btn-b active" data-months="12">12M (prior)</button>
+            <button class="preset-btn-b" data-months="24">24M</button>
+          </div>
+          <div class="date-range-grid">
+            <div>
+              <div class="date-mini-label">From</div>
+              <input type="month" id="fromDateB" />
+            </div>
+            <div>
+              <div class="date-mini-label">To</div>
+              <input type="month" id="toDateB" />
+            </div>
+          </div>
+          <div id="rangeWarningB" class="range-warning" style="display: none;"></div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="right-column">
+
+    <div id="dataBanner"></div>
+
+    <div class="hero-result">
+      <div class="hero-stat headline">
+        <div class="hero-stat-label">Weighted cost inflation</div>
+        <div class="hero-stat-value" id="costInflation">—<span class="unit">%</span></div>
+        <div class="hero-stat-context" id="costInflationCtx">Over the selected lookback period</div>
+      </div>
+      <div class="hero-stat critical">
+        <div class="hero-stat-label">Price increase to hold margin</div>
+        <div class="hero-stat-value" id="priceIncrease">—<span class="unit">%</span></div>
+        <div class="hero-stat-context" id="priceIncreaseCtx">Required to preserve gross margin %</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-label">Margin compression risk</div>
+        <div class="hero-stat-value" id="marginRisk">—<span class="unit">bps</span></div>
+        <div class="hero-stat-context" id="marginRiskCtx">If you take no price action</div>
+      </div>
+    </div>
+
+    <div id="comparePanel" class="panel" style="display: none;">
+      <div class="panel-title"><span><span class="step">★</span> &nbsp;Period A vs Period B</span><span id="compareSummary">—</span></div>
+      <div class="compare-grid">
+        <div class="compare-card a">
+          <div class="compare-card-tag"><span class="period-tag a">Period A</span></div>
+          <div class="compare-card-range" id="compareRangeA">—</div>
+          <div class="compare-card-value" id="compareValueA">—<span class="unit">%</span></div>
+          <div class="compare-card-meta" id="compareMetaA">cost inflation</div>
+        </div>
+        <div class="compare-card b">
+          <div class="compare-card-tag"><span class="period-tag b">Period B</span></div>
+          <div class="compare-card-range" id="compareRangeB">—</div>
+          <div class="compare-card-value" id="compareValueB">—<span class="unit">%</span></div>
+          <div class="compare-card-meta" id="compareMetaB">cost inflation</div>
+        </div>
+        <div class="compare-card delta">
+          <div class="compare-card-tag"><span class="period-tag delta">Δ Delta</span></div>
+          <div class="compare-card-range" id="compareDeltaDir">—</div>
+          <div class="compare-card-value" id="compareDeltaValue">—<span class="unit">pp</span></div>
+          <div class="compare-card-meta" id="compareDeltaMeta">A vs B</div>
+        </div>
+      </div>
+
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>Cost bucket</th>
+            <th>Period A</th>
+            <th>Period B</th>
+            <th>Δ</th>
+          </tr>
+        </thead>
+        <tbody id="compareTableBody"></tbody>
+      </table>
+      <p class="note">Δ is the inflation change in percentage points. Positive Δ means cost pressure accelerated in Period A vs Period B. Useful for "is inflation getting worse?" reads.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span><span class="step">03</span> &nbsp;Contribution to Cost Inflation</span><span>By bucket</span></div>
+      <div class="contribution-list" id="contributionList"></div>
+      <p class="note">Each bar shows bucket weight × bucket inflation. The longest bars are where margin is being squeezed most.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span><span class="step">04</span> &nbsp;Cost Index vs. Your Price</span><span id="chartMarket">United States</span></div>
+      <div class="chart-wrap"><canvas id="indexChart"></canvas></div>
+      <p class="note">Indexed to 100 at the start of the lookback period. The gap is the margin compression being absorbed.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span><span class="step">05</span> &nbsp;Pass-Through Sensitivity</span><span>Required price action</span></div>
+      <table class="sensitivity-table">
+        <thead>
+          <tr>
+            <th>Pass-through target</th>
+            <th>Price increase</th>
+            <th>Margin retained</th>
+            <th>Margin lost (bps)</th>
+          </tr>
+        </thead>
+        <tbody id="sensitivityBody"></tbody>
+      </table>
+      <p class="note">B2B negotiations typically land at 60–80% pass-through in the first cycle. 100% preserves margin; below 50% causes structural damage.</p>
+    </div>
+
+  </main>
+</div>
+
+<footer class="footer">
+  <div>Inflation Pass-Through Calculator · v1.0</div>
+  <div>Sources: FRED (US) · TCMB EVDS / TÜİK (TR)</div>
+</footer>
+
+<script>
+// ============================================================
+// DATA LOADING — fetches data/us.json and data/tr.json
+// Falls back to embedded demo data if fetch fails (e.g. opened via file://)
+// ============================================================
+
+const DATA_PATHS = { US: './data/us.json', TR: './data/tr.json' };
+let LOADED_DATA = { US: null, TR: null };
+let DATA_MODE = 'live'; // 'live' or 'demo'
+
+// Minimal embedded demo data for offline/preview use
+const DEMO_DATA = {
+  US: {
+    market: 'US',
+    source: 'Demo data (no live fetch)',
+    last_updated: 'demo',
+    lookback_months: 36,
+    buckets: [
+      demoBucket('us_steel',      'Steel & iron',           [0.4,0.2,-0.1,0.3,0.5,0.6,0.4,0.2,0.3,0.5,0.7,0.5,0.4,0.6,0.3,0.2,0.4,0.3,0.5,0.4,0.3,0.2,0.4,0.6,0.3,0.4,0.2,0.5,0.4,0.3,0.5,0.4,0.3,0.5,0.4,0.3]),
+      demoBucket('us_diesel',     'Diesel & fuel',          [1.2,-0.8,0.5,1.5,2.0,-1.2,0.8,1.5,-0.5,0.7,1.8,-0.6,0.9,1.2,-0.4,0.6,1.0,-0.5,0.8,1.4,-0.7,0.9,1.3,0.5,0.8,-0.4,0.6,1.0,-0.3,0.7,1.1,-0.5,0.4,0.9,-0.3,0.6]),
+      demoBucket('us_trucking',   'Trucking freight',       [0.6,0.5,0.4,0.7,0.8,0.5,0.4,0.6,0.7,0.5,0.6,0.7,0.5,0.4,0.6,0.7,0.5,0.6,0.8,0.5,0.4,0.6,0.7,0.5,0.5,0.6,0.4,0.7,0.5,0.6,0.5,0.4,0.6,0.5,0.4,0.6]),
+      demoBucket('us_mfg_wages',  'Manufacturing wages',    Array(36).fill(0.35)),
+      demoBucket('us_corrugated', 'Corrugated packaging',   [0.5,0.4,0.3,0.4,0.5,0.3,0.2,0.3,0.4,0.3,0.5,0.4,0.3,0.4,0.5,0.3,0.2,0.4,0.3,0.5,0.4,0.3,0.4,0.5,0.3,0.4,0.5,0.3,0.4,0.3,0.5,0.4,0.3,0.4,0.3,0.4]),
+      demoBucket('us_electricity','Industrial electricity', Array(36).fill(0.4)),
+      demoBucket('us_grain',      'Grains & cereals',       [-0.5,-0.8,0.3,0.6,0.4,-0.3,-0.6,0.2,0.5,0.3,-0.4,-0.7,0.4,0.6,0.3,-0.2,-0.5,0.3,0.5,0.4,-0.3,-0.6,0.4,0.5,0.2,0.4,-0.3,0.5,0.3,-0.4,0.4,0.2,-0.3,0.5,0.4,0.3]),
+    ]
+  },
+  TR: {
+    market: 'TR',
+    source: 'Demo data (no live fetch)',
+    last_updated: 'demo',
+    lookback_months: 36,
+    buckets: [
+      demoBucket('tr_steel',       'Çelik & demir (Steel)',          Array(36).fill(0).map((_, i) => 3.5 + Math.sin(i/3) * 1.0)),
+      demoBucket('tr_diesel',      'Akaryakıt (Diesel/fuel)',         Array(36).fill(0).map((_, i) => 4.5 + Math.sin(i/2) * 2.0)),
+      demoBucket('tr_trucking',    'Karayolu nakliye (Trucking)',     Array(36).fill(0).map((_, i) => 4.0 + Math.sin(i/4) * 0.5)),
+      demoBucket('tr_wages',       'İmalat ücretleri (Mfg wages)',    Array(36).fill(0).map((_, i) => i % 6 === 0 ? 8.5 : 3.0)),
+      demoBucket('tr_packaging',   'Ambalaj (Packaging)',             Array(36).fill(0).map((_, i) => 3.2 + Math.cos(i/3) * 0.4)),
+      demoBucket('tr_electricity', 'Elektrik (Electricity)',          Array(36).fill(4.2)),
+      demoBucket('tr_grain',       'Tahıl (Grains)',                  Array(36).fill(0).map((_, i) => 3.5 + Math.sin(i/5) * 0.6)),
+    ]
+  }
+};
+
+function demoBucket(id, label, monthlyPcts) {
+  const series = [100];
+  for (const p of monthlyPcts) series.push(series[series.length - 1] * (1 + p / 100));
+  return { id, label, series_id: 'DEMO', series: series.map(v => +v.toFixed(4)), dates: [] };
+}
+
+// ============================================================
+// TEMPLATES — bucket IDs that must exist in the loaded data
+// ============================================================
+const TEMPLATES = {
+  US: [
+    { name: 'CPG Food',         buckets: [['us_grain', 25], ['us_sugar', 15], ['us_dairy', 15], ['us_corrugated', 15], ['us_trucking', 15], ['us_mfg_wages', 15]] },
+    { name: 'Industrial Mfg',   buckets: [['us_steel', 35], ['us_aluminum', 15], ['us_electricity', 10], ['us_mfg_wages', 25], ['us_trucking', 15]] },
+    { name: 'E-commerce / DTC', buckets: [['us_corrugated', 20], ['us_trucking', 30], ['us_ocean', 15], ['us_wh_wages', 25], ['us_plastics', 10]] },
+    { name: 'QSR',              buckets: [['us_grain', 15], ['us_dairy', 15], ['us_sugar', 10], ['us_electricity', 10], ['us_mfg_wages', 35], ['us_natgas', 15]] },
+    { name: 'Logistics',        buckets: [['us_diesel', 35], ['us_trucking', 25], ['us_wh_wages', 30], ['us_electricity', 10]] }
+  ],
+  TR: [
+    { name: 'CPG Gıda',       buckets: [['tr_grain', 25], ['tr_sugar', 15], ['tr_dairy', 15], ['tr_packaging', 15], ['tr_trucking', 15], ['tr_wages', 15]] },
+    { name: 'Sanayi Üretim',  buckets: [['tr_steel', 35], ['tr_aluminum', 15], ['tr_electricity', 10], ['tr_wages', 25], ['tr_trucking', 15]] },
+    { name: 'E-ticaret',      buckets: [['tr_packaging', 20], ['tr_trucking', 30], ['tr_wages', 25], ['tr_plastics', 25]] },
+    { name: 'QSR',            buckets: [['tr_grain', 15], ['tr_dairy', 15], ['tr_sugar', 10], ['tr_electricity', 10], ['tr_wages', 35], ['tr_natgas', 15]] },
+    { name: 'Lojistik',       buckets: [['tr_diesel', 35], ['tr_trucking', 25], ['tr_wages', 30], ['tr_electricity', 10]] }
+  ]
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let state = {
+  market: 'US',
+  buckets: [],
+  grossMargin: 35,
+  // Period A: indices into the series array. null = auto (latest)
+  fromIdx: null,
+  toIdx: null,
+  // Period B: only used when compareMode is true
+  compareMode: false,
+  fromIdxB: null,
+  toIdxB: null,
+  activeTemplate: null
+};
+let chartInstance = null;
+
+// ============================================================
+// LOAD DATA
+// ============================================================
+async function loadMarketData(market) {
+  if (LOADED_DATA[market]) return LOADED_DATA[market];
+  try {
+    const resp = await fetch(DATA_PATHS[market], { cache: 'no-store' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    if (!data.buckets || data.buckets.length === 0) throw new Error('Empty buckets');
+    LOADED_DATA[market] = data;
+    return data;
+  } catch (e) {
+    console.warn(`Falling back to demo data for ${market}:`, e.message);
+    DATA_MODE = 'demo';
+    LOADED_DATA[market] = DEMO_DATA[market];
+    return LOADED_DATA[market];
+  }
+}
+
+function getCatalog() {
+  const d = LOADED_DATA[state.market];
+  return d ? d.buckets : [];
+}
+
+// ============================================================
+// STATUS / BANNERS
+// ============================================================
+function updateStatusUI() {
+  const data = LOADED_DATA[state.market];
+  const statusEl = document.getElementById('dataStatus');
+  const updatedEl = document.getElementById('lastUpdated');
+  const bannerEl = document.getElementById('dataBanner');
+
+  if (!data) {
+    statusEl.innerHTML = '<span class="live-dot demo"></span>Loading…';
+    updatedEl.textContent = '—';
+    bannerEl.innerHTML = '';
+    return;
+  }
+
+  if (DATA_MODE === 'live' && data.last_updated !== 'demo') {
+    statusEl.innerHTML = '<span class="live-dot"></span>Live data';
+    updatedEl.textContent = `Updated: ${data.last_updated}`;
+    bannerEl.innerHTML = `<div class="data-banner"><span>Source: ${data.source}</span><span>${data.buckets.length} series · last refresh ${data.last_updated}</span></div>`;
+  } else {
+    statusEl.innerHTML = '<span class="live-dot demo"></span>Demo mode';
+    updatedEl.textContent = 'Sample data';
+    bannerEl.innerHTML = `<div class="data-banner demo"><span>Demo data — wire up data/${state.market.toLowerCase()}.json for live values</span><span>${data.buckets.length} sample series</span></div>`;
+  }
+}
+
+// ============================================================
+// RENDER: Templates
+// ============================================================
+function renderTemplates() {
+  const wrap = document.getElementById('templates');
+  wrap.innerHTML = '';
+  TEMPLATES[state.market].forEach((tpl, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'template-btn' + (state.activeTemplate === i ? ' active' : '');
+    btn.textContent = tpl.name;
+    btn.onclick = () => loadTemplate(i);
+    wrap.appendChild(btn);
+  });
+}
+
+function loadTemplate(i) {
+  const tpl = TEMPLATES[state.market][i];
+  const catalog = getCatalog();
+  const availableIds = new Set(catalog.map(c => c.id));
+  // Only include buckets present in loaded data, renormalize weights to 100
+  const filtered = tpl.buckets.filter(([id]) => availableIds.has(id));
+  const totalW = filtered.reduce((s, [, w]) => s + w, 0) || 1;
+  state.activeTemplate = i;
+  state.buckets = filtered.map(([id, w]) => ({ id, weight: Math.round((w / totalW) * 100) }));
+  // Fix rounding so weights sum to exactly 100
+  const sum = state.buckets.reduce((s, b) => s + b.weight, 0);
+  if (state.buckets.length && sum !== 100) state.buckets[0].weight += (100 - sum);
+  renderAll();
+}
+
+// ============================================================
+// RENDER: Buckets
+// ============================================================
+function renderBuckets() {
+  const list = document.getElementById('bucketList');
+  list.innerHTML = '';
+  const catalog = getCatalog();
+
+  state.buckets.forEach((bucket, idx) => {
+    const row = document.createElement('div');
+    row.className = 'bucket-row';
+
+    const sel = document.createElement('select');
+    catalog.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.label;
+      if (c.id === bucket.id) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.onchange = (e) => { state.buckets[idx].id = e.target.value; state.activeTemplate = null; renderAll(); };
+
+    const wt = document.createElement('input');
+    wt.type = 'number'; wt.min = 0; wt.max = 100; wt.step = 1; wt.value = bucket.weight;
+    wt.oninput = (e) => { state.buckets[idx].weight = parseFloat(e.target.value) || 0; state.activeTemplate = null; renderAll(); };
+
+    const rm = document.createElement('button');
+    rm.className = 'bucket-remove'; rm.textContent = '×';
+    rm.onclick = () => { state.buckets.splice(idx, 1); state.activeTemplate = null; renderAll(); };
+
+    row.appendChild(sel); row.appendChild(wt); row.appendChild(rm);
+    list.appendChild(row);
+  });
+
+  const total = state.buckets.reduce((s, b) => s + b.weight, 0);
+  const totalEl = document.getElementById('weightTotal');
+  totalEl.textContent = total.toFixed(0) + '%';
+  totalEl.className = 'total ' + (Math.abs(total - 100) < 0.5 ? 'ok' : 'error');
+  document.getElementById('bucketCount').textContent = state.buckets.length + (state.buckets.length === 1 ? ' bucket' : ' buckets');
+}
+
+// ============================================================
+// DATE / RANGE HELPERS
+// ============================================================
+// Returns the longest series length across all buckets in current market
+function maxSeriesLength() {
+  const catalog = getCatalog();
+  return catalog.reduce((m, c) => Math.max(m, (c.series || []).length), 0);
+}
+
+// Get the date for a given series index. Uses dates from data if available,
+// otherwise computes backwards from "now" assuming monthly cadence.
+function dateForIdx(idx) {
+  const catalog = getCatalog();
+  for (const c of catalog) {
+    if (c.dates && c.dates[idx]) return c.dates[idx];
+  }
+  // Fallback: synthesize a YYYY-MM-01 string
+  const len = maxSeriesLength();
+  if (len === 0) return null;
+  const now = new Date();
+  const monthsBack = (len - 1) - idx;
+  const d = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+// Convert a "YYYY-MM" string from a <input type="month"> to a series index.
+// Snaps to nearest available month within the data window.
+function ymToIdx(ym) {
+  const len = maxSeriesLength();
+  if (!ym || len === 0) return null;
+  // Find closest index by comparing YYYY-MM strings
+  let bestIdx = 0, bestDiff = Infinity;
+  for (let i = 0; i < len; i++) {
+    const d = dateForIdx(i);
+    if (!d) continue;
+    const dYm = d.slice(0, 7);
+    const diff = Math.abs(yMonthDiff(dYm, ym));
+    if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+  }
+  return bestIdx;
+}
+
+function yMonthDiff(a, b) {
+  // Both are "YYYY-MM". Return signed difference in months.
+  const [ay, am] = a.split('-').map(Number);
+  const [by, bm] = b.split('-').map(Number);
+  return (ay - by) * 12 + (am - bm);
+}
+
+function idxToYm(idx) {
+  const d = dateForIdx(idx);
+  return d ? d.slice(0, 7) : '';
+}
+
+// Resolve current state to actual from/to indices for a given period ('A' or 'B')
+function resolveRange(period = 'A') {
+  const len = maxSeriesLength();
+  if (len === 0) return { from: 0, to: 0, months: 0 };
+
+  if (period === 'B') {
+    // Default B = the 12 months immediately prior to Period A start
+    const a = resolveRange('A');
+    const to = (state.toIdxB === null) ? Math.max(0, a.from - 1) : Math.min(Math.max(state.toIdxB, 0), len - 1);
+    const defaultFrom = Math.max(0, to - 12);
+    const from = (state.fromIdxB === null) ? defaultFrom : Math.min(Math.max(state.fromIdxB, 0), to - 1);
+    return { from, to, months: to - from };
+  }
+
+  const to = (state.toIdx === null) ? (len - 1) : Math.min(Math.max(state.toIdx, 0), len - 1);
+  const defaultFrom = Math.max(0, to - 12);
+  const from = (state.fromIdx === null) ? defaultFrom : Math.min(Math.max(state.fromIdx, 0), to - 1);
+  return { from, to, months: to - from };
+}
+
+// ============================================================
+// CALC
+// ============================================================
+function calcInflation(period = 'A') {
+  const { from, to, months } = resolveRange(period);
+  const catalog = getCatalog();
+  const totalWeight = state.buckets.reduce((s, b) => s + b.weight, 0);
+  if (totalWeight === 0 || months <= 0) return { weighted: 0, contributions: [], months };
+
+  const contributions = state.buckets.map(b => {
+    const cat = catalog.find(c => c.id === b.id);
+    if (!cat || !cat.series || from >= cat.series.length || to >= cat.series.length) {
+      return { id: b.id, label: cat ? cat.label : '?', inflation: 0, weight: 0, contribution: 0 };
+    }
+    const s = cat.series;
+    const startVal = s[from];
+    const endVal = s[to];
+    if (!startVal) return { id: b.id, label: cat.label, inflation: 0, weight: 0, contribution: 0 };
+    const inflation = ((endVal - startVal) / startVal) * 100;
+    const weight = b.weight / totalWeight;
+    return { id: b.id, label: cat.label, inflation, weight, contribution: weight * inflation };
+  });
+
+  return { weighted: contributions.reduce((s, c) => s + c.contribution, 0), contributions, months };
+}
+
+// ============================================================
+// RENDER: Hero
+// ============================================================
+function renderHero() {
+  const { weighted, months } = calcInflation();
+  const { from, to } = resolveRange();
+  const gm = state.grossMargin / 100;
+  const requiredPriceIncrease = weighted;
+  const marginLostPct = (1 - gm) * (weighted / 100);
+  const marginLostBps = marginLostPct * 10000;
+
+  document.getElementById('costInflation').innerHTML = fmt(weighted) + '<span class="unit">%</span>';
+  document.getElementById('priceIncrease').innerHTML = fmt(requiredPriceIncrease) + '<span class="unit">%</span>';
+  document.getElementById('marginRisk').innerHTML = Math.round(marginLostBps) + '<span class="unit">bps</span>';
+
+  const fromYm = idxToYm(from), toYm = idxToYm(to);
+  const rangeStr = fromYm && toYm ? `${fromYm} → ${toYm}` : `${months} months`;
+  document.getElementById('costInflationCtx').textContent = `${state.buckets.length} bucket${state.buckets.length === 1 ? '' : 's'} · ${rangeStr} (${months}m)`;
+  document.getElementById('priceIncreaseCtx').textContent = `Required for full pass-through · ${state.market === 'US' ? 'USD' : 'TRY'} terms`;
+  document.getElementById('marginRiskCtx').textContent = `Gross margin would fall to ${(gm * 100 - marginLostPct * 100).toFixed(1)}%`;
+}
+
+function fmt(n) {
+  if (n === 0) return '0.0';
+  return (n >= 0 ? '+' : '') + n.toFixed(1);
+}
+
+// ============================================================
+// RENDER: Contribution
+// ============================================================
+function renderContribution() {
+  const { contributions } = calcInflation();
+  const wrap = document.getElementById('contributionList');
+  wrap.innerHTML = '';
+  if (contributions.length === 0) { wrap.innerHTML = '<p class="note">Add cost buckets to see contribution.</p>'; return; }
+
+  const sorted = [...contributions].sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution));
+  const maxAbs = Math.max(...sorted.map(c => Math.abs(c.contribution)), 0.1);
+
+  sorted.forEach(c => {
+    const row = document.createElement('div'); row.className = 'contrib-row';
+    const label = document.createElement('div'); label.className = 'contrib-label'; label.textContent = c.label; label.title = c.label;
+    const track = document.createElement('div'); track.className = 'contrib-bar-track';
+    const fill = document.createElement('div'); fill.className = 'contrib-bar-fill' + (c.contribution < 0 ? ' neg' : '');
+    fill.style.width = (Math.abs(c.contribution) / maxAbs * 100) + '%'; track.appendChild(fill);
+    const val = document.createElement('div'); val.className = 'contrib-value' + (c.contribution < 0 ? ' neg' : '');
+    val.textContent = (c.contribution >= 0 ? '+' : '') + c.contribution.toFixed(2) + '%';
+    row.appendChild(label); row.appendChild(track); row.appendChild(val);
+    wrap.appendChild(row);
+  });
+}
+
+// ============================================================
+// RENDER: Chart
+// ============================================================
+function renderChart() {
+  const { from, to } = resolveRange();
+  const catalog = getCatalog();
+  const totalWeight = state.buckets.reduce((s, b) => s + b.weight, 0);
+  const labels = [], values = [];
+  const seriesLength = to - from + 1;
+
+  for (let i = 0; i < seriesLength; i++) {
+    const ymLabel = idxToYm(from + i);
+    labels.push(ymLabel || ('M+' + i));
+    if (totalWeight === 0) { values.push(100); continue; }
+    let weightedRel = 0;
+    state.buckets.forEach(b => {
+      const cat = catalog.find(c => c.id === b.id);
+      if (!cat || !cat.series) return;
+      if (from >= cat.series.length || from + i >= cat.series.length) return;
+      const baseVal = cat.series[from];
+      const currVal = cat.series[from + i];
+      if (!baseVal) return;
+      weightedRel += (currVal / baseVal) * 100 * (b.weight / totalWeight);
+    });
+    values.push(weightedRel);
+  }
+
+  const priceLine = labels.map(() => 100);
+  if (chartInstance) chartInstance.destroy();
+  const ctx = document.getElementById('indexChart').getContext('2d');
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Weighted cost index', data: values, borderColor: '#b8341e', backgroundColor: 'rgba(184,52,30,0.08)', fill: true, tension: 0.25, borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 4 },
+        { label: 'Your price (held flat)', data: priceLine, borderColor: '#0f0f0e', borderDash: [4, 4], borderWidth: 1.5, pointRadius: 0, fill: false }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', align: 'end', labels: { font: { family: 'JetBrains Mono', size: 11 }, color: '#0f0f0e', boxWidth: 14, boxHeight: 2 } },
+        tooltip: { backgroundColor: '#0f0f0e', titleFont: { family: 'JetBrains Mono', size: 11 }, bodyFont: { family: 'JetBrains Mono', size: 11 }, callbacks: { label: (ctx) => ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) } }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(15,15,14,0.05)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#6b6660' } },
+        y: { grid: { color: 'rgba(15,15,14,0.08)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#6b6660' } }
+      }
+    }
+  });
+
+  document.getElementById('chartMarket').textContent = state.market === 'US' ? 'United States' : 'Türkiye';
+}
+
+// ============================================================
+// RENDER: Sensitivity
+// ============================================================
+function renderSensitivity() {
+  const { weighted } = calcInflation();
+  const gm = state.grossMargin / 100;
+  const targets = [25, 50, 75, 100];
+  const body = document.getElementById('sensitivityBody');
+  body.innerHTML = '';
+  targets.forEach(t => {
+    const priceIncrease = weighted * (t / 100);
+    const newPrice = 1 + priceIncrease / 100;
+    const newCost = (1 - gm) * (1 + weighted / 100);
+    const newMargin = (newPrice - newCost) / newPrice;
+    const marginLostBps = (gm - newMargin) * 10000;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${t}% pass-through</td><td class="${t === 100 ? 'highlight' : ''}">${priceIncrease >= 0 ? '+' : ''}${priceIncrease.toFixed(2)}%</td><td>${(newMargin * 100).toFixed(1)}%</td><td>${Math.round(marginLostBps)}</td>`;
+    body.appendChild(tr);
+  });
+}
+
+// ============================================================
+// RENDER: Date controls (sync UI to state)
+// ============================================================
+function renderDateControls() {
+  const len = maxSeriesLength();
+  const fromInput = document.getElementById('fromDate');
+  const toInput = document.getElementById('toDate');
+  const label = document.getElementById('rangeMonthsLabel');
+  const warning = document.getElementById('rangeWarning');
+
+  if (len === 0) {
+    fromInput.value = ''; toInput.value = '';
+    label.textContent = '— months';
+    warning.style.display = 'none';
+    return;
+  }
+
+  const minYm = idxToYm(0);
+  const maxYm = idxToYm(len - 1);
+  fromInput.min = minYm; fromInput.max = maxYm;
+  toInput.min = minYm;   toInput.max = maxYm;
+
+  const { from, to, months } = resolveRange('A');
+  fromInput.value = idxToYm(from);
+  toInput.value = idxToYm(to);
+  label.textContent = months + (months === 1 ? ' month' : ' months');
+
+  // Highlight matching preset if range ends at latest and length matches
+  const isLatest = (to === len - 1);
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.classList.remove('active');
+    const m = btn.dataset.months;
+    if (m && isLatest && parseInt(m) === months) btn.classList.add('active');
+  });
+
+  // Warning state
+  if (months < 1) {
+    warning.style.display = 'block';
+    warning.textContent = '⚠ From date must be before To date';
+  } else if (months < 2) {
+    warning.style.display = 'block';
+    warning.textContent = 'ℹ Very short range — results may be noisy';
+  } else {
+    warning.style.display = 'none';
+  }
+
+  // ---- Period B controls (only relevant in compare mode) ----
+  if (!state.compareMode) return;
+
+  const fromInputB = document.getElementById('fromDateB');
+  const toInputB = document.getElementById('toDateB');
+  const labelB = document.getElementById('rangeMonthsLabelB');
+  const warningB = document.getElementById('rangeWarningB');
+  fromInputB.min = minYm; fromInputB.max = maxYm;
+  toInputB.min = minYm; toInputB.max = maxYm;
+
+  const b = resolveRange('B');
+  fromInputB.value = idxToYm(b.from);
+  toInputB.value = idxToYm(b.to);
+  labelB.textContent = b.months + (b.months === 1 ? ' month' : ' months');
+
+  // Highlight matching B preset: range that ends immediately before A start, with matching length
+  const aRange = resolveRange('A');
+  const isPriorToA = (b.to === aRange.from - 1);
+  document.querySelectorAll('.preset-btn-b').forEach(btn => {
+    btn.classList.remove('active');
+    const m = btn.dataset.months;
+    if (m && isPriorToA && parseInt(m) === b.months) btn.classList.add('active');
+  });
+
+  if (b.months < 1) {
+    warningB.style.display = 'block';
+    warningB.textContent = '⚠ Period B: From must be before To';
+  } else if (b.months < 2) {
+    warningB.style.display = 'block';
+    warningB.textContent = 'ℹ Period B is very short — results may be noisy';
+  } else {
+    warningB.style.display = 'none';
+  }
+}
+
+// ============================================================
+// RENDER: Compare panel
+// ============================================================
+function renderCompare() {
+  const panel = document.getElementById('comparePanel');
+  if (!state.compareMode) { panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+
+  const a = calcInflation('A');
+  const b = calcInflation('B');
+  const ra = resolveRange('A'), rb = resolveRange('B');
+
+  // Card values
+  document.getElementById('compareRangeA').textContent = `${idxToYm(ra.from)} → ${idxToYm(ra.to)} · ${a.months}m`;
+  document.getElementById('compareRangeB').textContent = `${idxToYm(rb.from)} → ${idxToYm(rb.to)} · ${b.months}m`;
+  document.getElementById('compareValueA').innerHTML = fmt(a.weighted) + '<span class="unit">%</span>';
+  document.getElementById('compareValueB').innerHTML = fmt(b.weighted) + '<span class="unit">%</span>';
+
+  const delta = a.weighted - b.weighted;
+  const deltaEl = document.getElementById('compareDeltaValue');
+  deltaEl.innerHTML = (delta >= 0 ? '+' : '') + delta.toFixed(1) + '<span class="unit">pp</span>';
+  document.getElementById('compareDeltaDir').textContent = delta > 0.1 ? 'ACCELERATING' : (delta < -0.1 ? 'DECELERATING' : 'STABLE');
+  const deltaMeta = document.getElementById('compareDeltaMeta');
+  if (Math.abs(delta) < 0.1) {
+    deltaMeta.textContent = 'inflation roughly unchanged';
+  } else if (delta > 0) {
+    deltaMeta.textContent = `Period A is ${delta.toFixed(1)}pp higher`;
+  } else {
+    deltaMeta.textContent = `Period A is ${Math.abs(delta).toFixed(1)}pp lower`;
+  }
+
+  // Summary in title bar
+  document.getElementById('compareSummary').textContent = state.buckets.length + ' bucket' + (state.buckets.length === 1 ? '' : 's');
+
+  // Detailed table
+  const body = document.getElementById('compareTableBody');
+  body.innerHTML = '';
+  // Align by bucket id
+  const aMap = Object.fromEntries(a.contributions.map(c => [c.id, c]));
+  const bMap = Object.fromEntries(b.contributions.map(c => [c.id, c]));
+  const ids = Object.keys(aMap);
+
+  // Sort by largest absolute delta first
+  const rows = ids.map(id => {
+    const aRow = aMap[id], bRow = bMap[id] || { inflation: 0 };
+    return { id, label: aRow.label, infA: aRow.inflation, infB: bRow.inflation, delta: aRow.inflation - bRow.inflation };
+  }).sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta));
+
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    const deltaClass = r.delta > 0.1 ? 'delta-up' : (r.delta < -0.1 ? 'delta-down' : '');
+    tr.innerHTML = `
+      <td>${r.label}</td>
+      <td>${(r.infA >= 0 ? '+' : '') + r.infA.toFixed(2)}%</td>
+      <td>${(r.infB >= 0 ? '+' : '') + r.infB.toFixed(2)}%</td>
+      <td class="${deltaClass}">${(r.delta >= 0 ? '+' : '') + r.delta.toFixed(2)}pp</td>
+    `;
+    body.appendChild(tr);
+  });
+
+  // Update Period A label to clarify when compare mode is on
+  document.getElementById('periodALabel').innerHTML = '<span class="period-tag a">Period A</span>';
+}
+
+// ============================================================
+// RENDER ALL
+// ============================================================
+function renderAll() {
+  updateStatusUI();
+  renderTemplates();
+  renderBuckets();
+  renderDateControls();
+  renderHero();
+  renderContribution();
+  renderChart();
+  renderSensitivity();
+  renderCompare();
+}
+
+// ============================================================
+// EVENT WIRING
+// ============================================================
+document.getElementById('market').addEventListener('change', async (e) => {
+  state.market = e.target.value;
+  state.activeTemplate = null;
+  // Reset date range when switching markets (different data lengths)
+  state.fromIdx = null;
+  state.toIdx = null;
+  state.fromIdxB = null;
+  state.toIdxB = null;
+  await loadMarketData(state.market);
+  loadTemplate(1); // Default: Industrial Mfg / Sanayi Üretim
+});
+
+document.getElementById('addBucket').addEventListener('click', () => {
+  const catalog = getCatalog();
+  if (catalog.length === 0) return;
+  state.buckets.push({ id: catalog[0].id, weight: 10 });
+  state.activeTemplate = null;
+  renderAll();
+});
+
+document.getElementById('grossMargin').addEventListener('input', (e) => {
+  state.grossMargin = parseFloat(e.target.value) || 0;
+  document.getElementById('gmDisplay').textContent = state.grossMargin + '%';
+  renderHero(); renderSensitivity();
+});
+
+// Date pickers
+document.getElementById('fromDate').addEventListener('change', (e) => {
+  state.fromIdx = ymToIdx(e.target.value);
+  renderAll();
+});
+document.getElementById('toDate').addEventListener('change', (e) => {
+  state.toIdx = ymToIdx(e.target.value);
+  // If from is now >= to, push from back
+  const { from, to } = resolveRange();
+  if (from >= to) state.fromIdx = Math.max(0, to - 12);
+  renderAll();
+});
+
+// Preset chips
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const len = maxSeriesLength();
+    if (len === 0) return;
+    if (btn.dataset.ytd) {
+      // YTD: from = Jan of current year (in latest data), to = latest
+      const latestYm = idxToYm(len - 1);
+      if (!latestYm) return;
+      const year = latestYm.slice(0, 4);
+      state.fromIdx = ymToIdx(`${year}-01`);
+      state.toIdx = len - 1;
+    } else if (btn.dataset.months) {
+      const m = parseInt(btn.dataset.months);
+      state.toIdx = len - 1;
+      state.fromIdx = Math.max(0, (len - 1) - m);
+    }
+    renderAll();
+  });
+});
+
+// Compare mode toggle
+document.getElementById('compareToggle').addEventListener('change', (e) => {
+  state.compareMode = e.target.checked;
+  document.getElementById('periodBSection').style.display = state.compareMode ? 'block' : 'none';
+  if (state.compareMode) {
+    // Default: B = 12 months immediately prior to A
+    const a = resolveRange('A');
+    if (state.toIdxB === null) state.toIdxB = Math.max(0, a.from - 1);
+    if (state.fromIdxB === null) state.fromIdxB = Math.max(0, (state.toIdxB || 0) - 12);
+  } else {
+    document.getElementById('periodALabel').textContent = 'Comparison period';
+  }
+  renderAll();
+});
+
+// Period B date pickers
+document.getElementById('fromDateB').addEventListener('change', (e) => {
+  state.fromIdxB = ymToIdx(e.target.value);
+  renderAll();
+});
+document.getElementById('toDateB').addEventListener('change', (e) => {
+  state.toIdxB = ymToIdx(e.target.value);
+  const b = resolveRange('B');
+  if (b.from >= b.to) state.fromIdxB = Math.max(0, b.to - 12);
+  renderAll();
+});
+
+// Period B presets — anchor to "ends right before Period A starts"
+document.querySelectorAll('.preset-btn-b').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const len = maxSeriesLength();
+    if (len === 0) return;
+    const m = parseInt(btn.dataset.months);
+    if (!m) return;
+    const a = resolveRange('A');
+    state.toIdxB = Math.max(0, a.from - 1);
+    state.fromIdxB = Math.max(0, state.toIdxB - m);
+    renderAll();
+  });
+});
+
+// ============================================================
+// INIT
+// ============================================================
+(async function init() {
+  await loadMarketData('US');
+  await loadMarketData('TR');
+  loadTemplate(1);
+})();
+</script>
+
+</body>
+</html>
