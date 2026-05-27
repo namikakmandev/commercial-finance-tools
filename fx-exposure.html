@@ -1378,7 +1378,7 @@ async function loadLiveFx() {
     const startStr = start.toISOString().slice(0, 10);
     const endStr = today.toISOString().slice(0, 10);
     const ccys = CURRENCIES.filter(c => c !== 'USD');
-    const url = `https://api.frankfurter.app/${startStr}..${endStr}?from=USD&to=${ccys.join(',')}`;
+    const url = `https://api.frankfurter.dev/v1/${startStr}..${endStr}?base=USD&symbols=${ccys.join(',')}`;
     const resp = await fetch(url);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
