@@ -406,35 +406,35 @@
     ],
     [
       "tr_steel",
-      "no TR API key"
+      "output: HTTP Error 400: Bad Request"
     ],
     [
       "tr_auto_oem",
-      "no TR API key"
+      "output: HTTP Error 400: Bad Request"
     ],
     [
       "tr_auto_parts",
-      "no TR API key"
+      "output: HTTP Error 400: Bad Request"
     ],
     [
       "tr_food_mfg",
-      "no TR API key"
+      "output: HTTP Error 400: Bad Request"
     ],
     [
       "tr_apparel",
-      "no TR API key"
+      "output: HTTP Error 400: Bad Request"
     ],
     [
       "tr_chemicals",
-      "no TR API key"
+      "output: HTTP Error 400: Bad Request"
     ],
     [
       "tr_construction",
-      "no TR API key"
+      "output: HTTP Error 400: Bad Request"
     ],
     [
       "tr_pharma",
-      "no TR API key"
+      "output: HTTP Error 400: Bad Request"
     ]
   ]
 }
