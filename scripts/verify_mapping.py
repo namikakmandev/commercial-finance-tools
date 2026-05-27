@@ -69,7 +69,7 @@ def fetch_tcmb(series_id: str, api_key: str):
     today = datetime.utcnow()
     start = today - timedelta(days=(LOOKBACK_MONTHS + 2) * 31)
     url = (
-        f"https://evds2.tcmb.gov.tr/service/evds/"
+        f"https://evds3.tcmb.gov.tr/igmevdsms-dis/"
         f"series={series_id}&startDate={start.strftime('%d-%m-%Y')}&endDate={today.strftime('%d-%m-%Y')}"
         f"&type=json&aggregationTypes=avg&formulas=0&frequency=5"
     )

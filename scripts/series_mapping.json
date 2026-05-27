@@ -29,7 +29,7 @@
 
   "TR": {
     "source": "TCMB EVDS (Türkiye Cumhuriyet Merkez Bankası, redistributing TÜİK)",
-    "api_base": "https://evds2.tcmb.gov.tr/service/evds/series=",
+    "api_base": "https://evds3.tcmb.gov.tr/igmevdsms-dis/series=",
     "auth_env": "TCMB_API_KEY",
     "_warning": "TCMB series IDs are best-effort. Run verify_mapping.py against EVDS before relying on them.",
     "buckets": [

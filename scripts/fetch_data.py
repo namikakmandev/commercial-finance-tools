@@ -95,10 +95,13 @@ def fetch_tcmb_series(series_id: str, api_key: str) -> tuple[list[str], list[flo
     start_str = start.strftime("%d-%m-%Y")
     end_str = today.strftime("%d-%m-%Y")
 
-    # EVDS API format: /service/evds/series=<id>&startDate=...&endDate=...&type=json&aggregationTypes=avg&formulas=0&frequency=5
+    # EVDS API format (post-2024 migration to evds3):
+    # base: https://evds3.tcmb.gov.tr/igmevdsms-dis/
+    # path: series=<id>&startDate=...&endDate=...&type=json&aggregationTypes=avg&formulas=0&frequency=5
+    # auth: key header (no longer a query param since April 2024)
     # frequency=5 = monthly
     url = (
-        f"https://evds2.tcmb.gov.tr/service/evds/"
+        f"https://evds3.tcmb.gov.tr/igmevdsms-dis/"
         f"series={series_id}&startDate={start_str}&endDate={end_str}"
         f"&type=json&aggregationTypes=avg&formulas=0&frequency=5"
     )
