@@ -351,7 +351,13 @@ def main():
         print(f"  ! Refresh complete — {overall_failures} failures (see logs above)")
     print("=" * 60)
 
-    if overall_failures > 25:
+    # Only treat as a hard failure if US cost-buckets had any failures (that's
+    # the critical data path — the primary tool depends on it). Failures in
+    # TR cost-buckets and in industries are nice-to-have and shouldn't fail
+    # the whole monthly run.
+    us_failures = len(us_data["failures"]) if "us_data" in locals() else 999
+    if us_failures > 0:
+        print(f"  US cost-bucket failures ({us_failures}) — exiting non-zero so monitoring catches this.")
         sys.exit(1)
 
 
