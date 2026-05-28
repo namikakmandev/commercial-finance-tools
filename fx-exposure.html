@@ -683,7 +683,13 @@ function realizedImpact(period = 'A') {
     const revW = (state.revenue.find(r => r[0] === c)?.[1] || 0) / 100;
     const costW = (state.costs.find(co => co[0] === c)?.[1] || 0) / 100;
     const gm = state.grossMargin / 100;
-    const marginContribPct = (revW * moves[c]) - ((1 - gm) * costW * moves[c]);
+    const revFactor = 1 + revImpact / 100;
+    // Net-margin contribution (in margin percentage points) of this currency.
+    // Derived so that Σ contributions == the headline margin change:
+    //   Δmargin = (1-gm)/revFactor × Σ (revW_c − costW_c) × move_c
+    // Uses NET exposure (revW − costW): a currency with equal revenue and cost
+    // weight is naturally hedged and correctly contributes ~0.
+    const marginContribPct = ((1 - gm) / revFactor) * (revW - costW) * moves[c];
     decomp.push({ ccy: c, revW, costW, move: moves[c], impact: marginContribPct });
   });
   decomp.sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact));
