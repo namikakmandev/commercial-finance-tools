@@ -586,6 +586,43 @@ let DATA_MODE = 'demo';
 let DATA_LAST_UPDATED = null;
 
 // ============================================================
+// INTEREST RATES (for hedge-cost pre-fill via interest-rate parity)
+// ------------------------------------------------------------
+// Annualized short-term / policy rates, in percent.
+// These are the built-in fallback values. When the tool is deployed,
+// the monthly GitHub Action writes ./data/rates.json with live values
+// (FRED for majors, TCMB for TRY) and loadRates() picks those up instead.
+// Covered interest-rate parity: hedge cost ≈ reporting-ccy rate − foreign-ccy rate.
+// EDIT THESE when a central bank changes its policy rate (a 1-minute update).
+const DEFAULT_RATES_ASOF = '2026-05';
+const DEFAULT_RATES = {
+  USD: 4.50,   // Fed funds target (upper bound)
+  EUR: 3.00,   // ECB deposit facility
+  TRY: 45.00,  // TCMB 1-week repo (policy rate)
+  GBP: 4.50,   // BoE bank rate
+  JPY: 0.50,   // BoJ policy rate
+  CNY: 3.00,   // PBoC 1-yr LPR (approx)
+  INR: 6.00,   // RBI repo rate
+  MXN: 9.00,   // Banxico target rate
+  BRL: 11.00,  // BCB Selic rate
+};
+// Active rate set: { rates: {ccy: %}, asOf: 'YYYY-MM', source: 'built-in'|'live' }
+let RATES = { rates: DEFAULT_RATES, asOf: DEFAULT_RATES_ASOF, source: 'built-in' };
+
+// Implied annualized hedge cost for a currency, via interest-rate parity:
+//   reporting-ccy rate − foreign-ccy rate.
+// Positive => hedging costs you; negative => hedging pays you.
+// Returns a value clamped to the slider range and rounded to its 0.5 step.
+function impliedHedgeCost(ccy) {
+  const rep = RATES.rates[state.reportingCcy];
+  const f = RATES.rates[ccy];
+  if (rep == null || f == null) return 1.5; // unknown rate → neutral default
+  let v = rep - f;
+  v = Math.max(-50, Math.min(50, v));        // keep inside slider bounds
+  return Math.round(v * 2) / 2;              // round to 0.5 step
+}
+
+// ============================================================
 // HELPERS
 // ============================================================
 function maxLen() { return Object.values(FX_DATA)[0]?.length || 0; }
@@ -1156,8 +1193,12 @@ function renderHedge() {
   wrap.appendChild(header);
 
   ccys.forEach(c => {
-    const h = state.hedges[c] || { ratio: 0, cost: 1.5 };
-    if (!state.hedges[c]) state.hedges[c] = h;
+    // Create the hedge entry on first sight, pre-filling cost from interest-rate parity.
+    if (!state.hedges[c]) state.hedges[c] = { ratio: 0, cost: impliedHedgeCost(c), costTouched: false };
+    const h = state.hedges[c];
+    // Until the user drags the cost slider, keep it synced to the implied parity value
+    // (so it updates when the reporting currency or rates change).
+    if (!h.costTouched) h.cost = impliedHedgeCost(c);
     // Per-currency unhedged historical impact
     const { from, to, months } = resolveRange('A');
     const startRate = fxRate(c, state.reportingCcy, from) || 1;
@@ -1178,7 +1219,7 @@ function renderHedge() {
       <div><span class="ccy-tag">${c}</span></div>
       <div><input type="range" min="0" max="100" step="5" value="${h.ratio}" data-ccy="${c}" data-field="ratio" /></div>
       <div class="hedge-val">${h.ratio}%</div>
-      <div><input type="range" min="0" max="20" step="0.5" value="${h.cost}" data-ccy="${c}" data-field="cost" class="cost" /></div>
+      <div><input type="range" min="-50" max="50" step="0.5" value="${h.cost}" data-ccy="${c}" data-field="cost" class="cost" /></div>
       <div class="hedge-val">${h.cost.toFixed(1)}%</div>
       <div class="hedge-impact ${netImpactPct >= 0 ? 'pos' : 'neg'}">${fmtPct(netImpactPct)}%</div>
     `;
@@ -1186,13 +1227,26 @@ function renderHedge() {
       inp.addEventListener('input', (e) => {
         const ccy = e.target.dataset.ccy;
         const field = e.target.dataset.field;
-        state.hedges[ccy] = state.hedges[ccy] || { ratio: 0, cost: 1.5 };
+        state.hedges[ccy] = state.hedges[ccy] || { ratio: 0, cost: impliedHedgeCost(ccy), costTouched: false };
         state.hedges[ccy][field] = parseFloat(e.target.value);
+        if (field === 'cost') state.hedges[ccy].costTouched = true; // user override: stop auto-syncing
         renderHedge();
       });
     });
     wrap.appendChild(row);
   });
+
+  // Note: explain the pre-filled hedge costs and their source
+  const rateNote = document.createElement('p');
+  rateNote.className = 'note';
+  rateNote.style.marginTop = '0.65rem';
+  const srcLabel = RATES.source === 'live'
+    ? `live policy rates (as of ${RATES.asOf || '—'})`
+    : `built-in policy rates (${RATES.asOf}, editable in source)`;
+  rateNote.innerHTML = `Hedge cost is pre-filled from interest-rate parity: <strong>${state.reportingCcy} rate − currency rate</strong>, using ${srcLabel}. `
+    + `Positive = hedging costs you; negative = hedging pays you. `
+    + `Approx — reflects rate differentials, not live bank forward points. Drag any slider to override.`;
+  wrap.appendChild(rateNote);
 
   // Aggregate: compute both unhedged and hedged monthly margin paths over window
   const { from, to } = resolveRange('A');
@@ -1421,8 +1475,30 @@ async function loadLiveFx() {
   }
 }
 
+// Try ./data/rates.json (written by the monthly GitHub Action once deployed);
+// fall back silently to the built-in DEFAULT_RATES table otherwise.
+async function loadRates() {
+  try {
+    const resp = await fetch('./data/rates.json', { cache: 'no-store' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    const asOf = data.as_of || data.asOf || null;
+    const rates = {};
+    for (const k of Object.keys(data)) {
+      if (k === 'as_of' || k === 'asOf') continue;
+      const num = parseFloat(data[k]);
+      if (!isNaN(num)) rates[k] = num;
+    }
+    if (Object.keys(rates).length === 0) throw new Error('no usable rates');
+    RATES = { rates, asOf, source: 'live' };
+  } catch (e) {
+    console.warn('Rates: using built-in defaults:', e.message);
+    RATES = { rates: DEFAULT_RATES, asOf: DEFAULT_RATES_ASOF, source: 'built-in' };
+  }
+}
+
 (async function init() {
-  await loadLiveFx();
+  await Promise.all([loadLiveFx(), loadRates()]);
   loadTemplate(1); // Default: US tech with India dev
 })();
 </script>

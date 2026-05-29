@@ -39,6 +39,13 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
+# Ensure the unicode status glyphs (✓ ✗ →) print on Windows consoles (cp1252) too;
+# GitHub Actions runs on UTF-8 Linux where this is a no-op.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
 ROOT = Path(__file__).resolve().parent.parent
 MAPPING_FILE = ROOT / "scripts" / "series_mapping.json"
 DATA_DIR = ROOT / "data"
@@ -291,6 +298,71 @@ def process_industries(mapping: dict, fred_key: str | None, tcmb_key: str | None
     return {"items": results, "failures": failures}
 
 
+def fetch_latest_rate(source: str, series_id: str, fred_key: str | None, tcmb_key: str | None):
+    """Fetch the most recent observation of a single rate series. Returns float or None."""
+    if source == "FRED":
+        _, vals = fetch_fred_series(series_id, fred_key)
+    elif source == "TCMB":
+        _, vals = fetch_tcmb_series(series_id, tcmb_key)
+    else:
+        return None
+    return vals[-1] if vals else None
+
+
+def process_rates(mapping: dict, fred_key: str | None, tcmb_key: str | None) -> list:
+    """Build data/rates.json: one annualized policy rate per currency.
+
+    Live where a free source exists (FRED majors, TCMB for TRY); static 'fallback'
+    otherwise or when a fetch fails. The FX tool reads this to pre-fill hedge costs
+    via interest-rate parity, and falls back to its own built-in table if the file
+    is absent — so partial coverage here is always safe.
+    """
+    cfg = mapping.get("RATES")
+    if not cfg:
+        return []
+
+    print("\n[+] Interest rates — hedge-cost parity (rates.json)")
+    out = {}
+    failures = []
+    for c in cfg.get("currencies", []):
+        ccy = c["ccy"]
+        source = c.get("source", "STATIC")
+        sid = c.get("series_id")
+        fb = c["fallback"]
+        key = fred_key if source == "FRED" else (tcmb_key if source == "TCMB" else None)
+        val = None
+
+        if source in ("FRED", "TCMB") and sid and key:
+            try:
+                val = fetch_latest_rate(source, sid, fred_key, tcmb_key)
+                if val is None:
+                    raise ValueError("no observations")
+            except Exception as e:
+                failures.append((ccy, str(e)[:40]))
+                log(f"  {ccy:5s} {sid or '-':20s} ERROR: {e} — using fallback {fb}", "warn")
+                val = None
+            time.sleep(0.3)
+
+        if val is None:
+            val = fb
+            if source in ("FRED", "TCMB") and sid:
+                pass  # already logged the failure above
+            else:
+                log(f"  {ccy:5s} {'(static)':20s} {fb}", "info")
+        else:
+            log(f"  {ccy:5s} {sid:20s} OK ({round(float(val), 2)})", "ok")
+
+        out[ccy] = round(float(val), 2)
+
+    out["as_of"] = datetime.utcnow().strftime("%Y-%m-%d")
+    out_path = DATA_DIR / "rates.json"
+    with open(out_path, "w") as f:
+        json.dump(out, f, indent=2)
+    n = len([k for k in out if k != "as_of"])
+    log(f"Wrote {out_path}  ({n} currencies, {len(failures)} live-fetch failures → fallback)", "ok")
+    return failures
+
+
 def main():
     print("=" * 60)
     print("  Inflation Tools — Data Refresh")
@@ -343,6 +415,13 @@ def main():
             json.dump(payload, f, indent=2)
         log(f"Wrote {out_path}  ({len(ind_data['items'])} industries, {len(ind_data['failures'])} failures)", "ok")
         overall_failures += len(ind_data["failures"])
+
+    # Interest rates for the FX tool's hedge-cost pre-fill. Always written:
+    # live where possible, static fallback otherwise. Fetch failures here fall
+    # back gracefully and are NOT counted toward overall_failures.
+    rate_failures = process_rates(mapping, fred_key, tcmb_key)
+    if rate_failures:
+        log(f"{len(rate_failures)} currencies used fallback rates (live fetch failed)", "warn")
 
     print("\n" + "=" * 60)
     if overall_failures == 0:

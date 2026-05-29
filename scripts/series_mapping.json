@@ -148,5 +148,21 @@
         "output_series_id": "TP.YUFE01.D21", "input_basket": ["TP.YUFE01.D20"],
         "notes": "NACE C21. Under SGK ceilings + Euro-referenced pricing." }
     ]
+  },
+
+  "RATES": {
+    "_comment": "Policy / short-term interest rates per currency (annualized %). Consumed by fx-exposure.html to pre-fill hedge costs via interest-rate parity (reporting-ccy rate − foreign-ccy rate). Majors come from FRED, TRY from TCMB. Emerging markets (CNY/INR/MXN/BRL) have no reliable free CORS-able feed, so they use a maintained static 'fallback' and are flagged approx. 'fallback' is also used for any currency whose live fetch fails. Keep fallbacks in sync with DEFAULT_RATES in fx-exposure.html. Verify FRED/TCMB series IDs at fredaccount.stlouisfed.org / evds2.tcmb.gov.tr before relying on live values.",
+    "as_of_fallback": "2026-05",
+    "currencies": [
+      { "ccy": "USD", "source": "FRED",   "series_id": "FEDFUNDS",         "fallback": 4.50,  "notes": "Effective federal funds rate (monthly)" },
+      { "ccy": "EUR", "source": "FRED",   "series_id": "ECBDFR",           "fallback": 3.00,  "notes": "ECB deposit facility rate" },
+      { "ccy": "GBP", "source": "FRED",   "series_id": "IR3TIB01GBM156N",  "fallback": 4.50,  "notes": "GBP 3-month interbank (proxy for bank rate) — verify" },
+      { "ccy": "JPY", "source": "FRED",   "series_id": "IRSTCB01JPM156N",  "fallback": 0.50,  "notes": "JP immediate/policy rate (OECD) — verify" },
+      { "ccy": "TRY", "source": "TCMB",   "series_id": "TP.APIFON4",       "fallback": 45.00, "notes": "TCMB weighted avg cost of funding ~ policy rate — verify exact 1-week repo series" },
+      { "ccy": "CNY", "source": "STATIC", "series_id": null,               "fallback": 3.00,  "approx": true, "notes": "PBoC 1-yr LPR — no free feed, static" },
+      { "ccy": "INR", "source": "STATIC", "series_id": null,               "fallback": 6.00,  "approx": true, "notes": "RBI repo rate — static" },
+      { "ccy": "MXN", "source": "STATIC", "series_id": null,               "fallback": 9.00,  "approx": true, "notes": "Banxico target rate — static" },
+      { "ccy": "BRL", "source": "STATIC", "series_id": null,               "fallback": 11.00, "approx": true, "notes": "BCB Selic rate — static" }
+    ]
   }
 }
