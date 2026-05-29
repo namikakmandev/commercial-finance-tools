@@ -1,7 +1,7 @@
 {
   "market": "TR",
   "source": "TCMB EVDS (T\u00fcrkiye Cumhuriyet Merkez Bankas\u0131, redistributing T\u00dc\u0130K)",
-  "last_updated": "2026-05-28",
+  "last_updated": "2026-05-29",
   "lookback_months": 36,
   "buckets": [
     {
