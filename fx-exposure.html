@@ -1499,7 +1499,7 @@ async function loadRates() {
 
 (async function init() {
   await Promise.all([loadLiveFx(), loadRates()]);
-  loadTemplate(1); // Default: US tech with India dev
+  loadTemplate(0); // Default: Turkish exporter to EU (primary use case)
 })();
 </script>
 </body>
