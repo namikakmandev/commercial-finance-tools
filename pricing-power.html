@@ -3,31 +3,35 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Pricing Power Index</title>
+<title>Pricing Power Index — Namık Akman</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<meta name="theme-color" content="#2F9BFF" />
+<link rel="stylesheet" href="tokens.css?v=18" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;700&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
-  :root {
-    --ink: #0f0f0e;
-    --paper: #f4f1ea;
-    --paper-2: #ebe6da;
-    --rule: #2a2724;
-    --accent: #b8341e;
-    --accent-soft: #d4a373;
-    --positive: #1f5f3f;
-    --positive-soft: #6ba888;
-    --muted: #6b6660;
-    --grid: rgba(15, 15, 14, 0.08);
+  .tool-light {
+    /* editorial names remapped onto canonical tokens (Phase 5) */
+    --ink: var(--text);
+    --paper: var(--bg);
+    --paper-2: var(--surface);
+    --rule: var(--border);
+    --accent-soft: #cfe3fb;
+    --positive: var(--accent-2);
+    --positive-soft: #8fd9b8;
+    --blue: var(--accent-3);
+    --muted: var(--text-dim);
+    --grid: rgba(31, 36, 48, 0.08);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Inter Tight', sans-serif; background: var(--paper); color: var(--ink); line-height: 1.5; min-height: 100vh; }
+  body { font-family: var(--font); background: var(--paper); color: var(--ink); line-height: 1.5; min-height: 100vh; }
 
   .masthead { border-bottom: 2px solid var(--ink); padding: 1.5rem 2rem 1rem; display: flex; justify-content: space-between; align-items: flex-end; gap: 2rem; }
   .masthead-left { display: flex; flex-direction: column; gap: 0.25rem; }
   .edition { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--muted); }
-  .masthead-title { font-family: 'Fraunces', serif; font-weight: 600; font-size: 2.6rem; line-height: 1; letter-spacing: -0.02em; }
+  .masthead-title { font-family: var(--font); font-weight: 600; font-size: 2.6rem; line-height: 1; letter-spacing: -0.02em; }
   .masthead-title em { font-style: italic; font-weight: 400; color: var(--accent); }
   .masthead-right { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; text-align: right; color: var(--muted); line-height: 1.8; }
   .masthead-right .live-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--positive); margin-right: 6px; animation: pulse 2s infinite; }
@@ -66,9 +70,9 @@
   .industry-row .label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .industry-row .approx-tag { font-size: 0.6rem; color: var(--accent); border: 1px solid var(--accent); padding: 0 0.3rem; letter-spacing: 0.05em; flex: none; }
   .industry-row .cat-tag { font-size: 0.6rem; color: #6a4a7d; border: 1px solid #6a4a7d; padding: 0 0.3rem; letter-spacing: 0.05em; flex: none; }
-  .industry-row .cat-tag.auto { color: #2d5f8a; border-color: #2d5f8a; }
+  .industry-row .cat-tag.auto { color: #ff6500; border-color: #ff6500; }
   .rank-label .cat-tag { font-size: 0.6rem; color: #6a4a7d; border: 1px solid #6a4a7d; padding: 0 0.3rem; flex: none; }
-  .rank-label .cat-tag.auto { color: #2d5f8a; border-color: #2d5f8a; }
+  .rank-label .cat-tag.auto { color: #ff6500; border-color: #ff6500; }
 
   .industry-actions { display: flex; gap: 0.4rem; margin-top: 0.5rem; }
   .industry-action-btn { flex: 1; background: transparent; border: 1px solid var(--rule); padding: 0.35rem; font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; cursor: pointer; color: var(--muted); transition: all 0.15s; }
@@ -81,10 +85,10 @@
   .hero-stat + .hero-stat { border-left: 1px solid rgba(244,241,234,0.15); padding-left: 2rem; }
   @media (max-width: 900px) { .hero-stat + .hero-stat { border-left: none; border-top: 1px solid rgba(244,241,234,0.15); padding-left: 0; padding-top: 1.5rem; } }
   .hero-stat-label { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--accent-soft); }
-  .hero-stat-value { font-family: 'Fraunces', serif; font-size: 2.2rem; font-weight: 500; line-height: 1.1; letter-spacing: -0.02em; }
+  .hero-stat-value { font-family: var(--font); font-size: 2.2rem; font-weight: 500; line-height: 1.1; letter-spacing: -0.02em; }
   .hero-stat-value strong { color: var(--positive-soft); }
   .hero-stat-value .neg { color: var(--accent-soft); }
-  .hero-stat-context { font-family: 'Inter Tight', sans-serif; font-size: 0.85rem; color: rgba(244,241,234,0.7); }
+  .hero-stat-context { font-family: var(--font); font-size: 0.85rem; color: rgba(244,241,234,0.7); }
 
   /* Ranking chart */
   .ranking { display: flex; flex-direction: column; gap: 0.4rem; }
@@ -111,7 +115,7 @@
   .detail-card.spread { border-top-color: var(--ink); background: var(--ink); color: var(--paper); }
   .detail-card-label { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); margin-bottom: 0.4rem; }
   .detail-card.spread .detail-card-label { color: var(--accent-soft); }
-  .detail-card-value { font-family: 'Fraunces', serif; font-size: 2rem; font-weight: 500; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .detail-card-value { font-family: var(--font); font-size: 2rem; font-weight: 500; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
   .detail-card-value .unit { font-size: 0.9rem; color: var(--muted); margin-left: 0.2rem; }
   .detail-card.spread .detail-card-value .unit { color: var(--accent-soft); }
 
@@ -129,7 +133,7 @@
   .legend-swatch { display: inline-block; width: 12px; height: 12px; margin-right: 0.3rem; vertical-align: middle; }
 </style>
 </head>
-<body>
+<body class="tool-light">
 
 <header class="masthead">
   <div class="masthead-left">
@@ -730,20 +734,20 @@ function renderDetail() {
     data: {
       labels,
       datasets: [
-        { label: 'Output PPI', data: outNorm, borderColor: '#1f5f3f', backgroundColor: 'rgba(31,95,63,0.08)', fill: '+1', tension: 0.25, borderWidth: 2.5, pointRadius: 0 },
-        { label: 'Input PPI', data: inNorm, borderColor: '#b8341e', backgroundColor: 'rgba(184,52,30,0.08)', fill: false, tension: 0.25, borderWidth: 2.5, pointRadius: 0 }
+        { label: 'Output PPI', data: outNorm, borderColor: '#19c37d', backgroundColor: 'rgba(31,95,63,0.08)', fill: '+1', tension: 0.25, borderWidth: 2.5, pointRadius: 0 },
+        { label: 'Input PPI', data: inNorm, borderColor: '#2f9bff', backgroundColor: 'rgba(184,52,30,0.08)', fill: false, tension: 0.25, borderWidth: 2.5, pointRadius: 0 }
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'top', align: 'end', labels: { font: { family: 'JetBrains Mono', size: 11 }, color: '#0f0f0e', boxWidth: 14, boxHeight: 2 } },
-        tooltip: { backgroundColor: '#0f0f0e', titleFont: { family: 'JetBrains Mono', size: 11 }, bodyFont: { family: 'JetBrains Mono', size: 11 },
+        legend: { position: 'top', align: 'end', labels: { font: { family: 'JetBrains Mono', size: 11 }, color: '#1f2430', boxWidth: 14, boxHeight: 2 } },
+        tooltip: { backgroundColor: '#1f2430', titleFont: { family: 'JetBrains Mono', size: 11 }, bodyFont: { family: 'JetBrains Mono', size: 11 },
                    callbacks: { label: (ctx) => ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) } }
       },
       scales: {
-        x: { grid: { color: 'rgba(15,15,14,0.05)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#6b6660', maxTicksLimit: 8 } },
-        y: { grid: { color: 'rgba(15,15,14,0.08)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#6b6660' } }
+        x: { grid: { color: 'rgba(31,36,48,0.05)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#5b6472', maxTicksLimit: 8 } },
+        y: { grid: { color: 'rgba(31,36,48,0.08)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#5b6472' } }
       }
     }
   });

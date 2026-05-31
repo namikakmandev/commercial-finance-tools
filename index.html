@@ -3,31 +3,36 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Inflation Pass-Through Calculator</title>
+<title>Inflation Pass-Through Calculator — Namık Akman</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<meta name="theme-color" content="#2F9BFF" />
+<link rel="stylesheet" href="tokens.css?v=18" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;700&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
-  :root {
-    --ink: #0f0f0e;
-    --paper: #f4f1ea;
-    --paper-2: #ebe6da;
-    --rule: #2a2724;
-    --accent: #b8341e;
-    --accent-soft: #d4a373;
-    --positive: #1f5f3f;
-    --muted: #6b6660;
-    --grid: rgba(15, 15, 14, 0.08);
+  .tool-light {
+    /* editorial names remapped onto canonical tokens (Phase 5) */
+    --ink: var(--text);
+    --paper: var(--bg);
+    --paper-2: var(--surface);
+    --rule: var(--border);
+    --accent-soft: #cfe3fb;
+    --positive: var(--accent-2);
+    --positive-soft: #8fd9b8;
+    --blue: var(--accent-3);
+    --muted: var(--text-dim);
+    --grid: rgba(31, 36, 48, 0.08);
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Inter Tight', sans-serif; background: var(--paper); color: var(--ink); line-height: 1.5; min-height: 100vh; }
+  body { font-family: var(--font); background: var(--paper); color: var(--ink); line-height: 1.5; min-height: 100vh; }
 
   .masthead { border-bottom: 2px solid var(--ink); padding: 1.5rem 2rem 1rem; display: flex; justify-content: space-between; align-items: flex-end; gap: 2rem; }
   .masthead-left { display: flex; flex-direction: column; gap: 0.25rem; }
   .edition { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--muted); }
-  .masthead-title { font-family: 'Fraunces', serif; font-weight: 600; font-size: 2.6rem; line-height: 1; letter-spacing: -0.02em; }
+  .masthead-title { font-family: var(--font); font-weight: 600; font-size: 2.6rem; line-height: 1; letter-spacing: -0.02em; }
   .masthead-title em { font-style: italic; font-weight: 400; color: var(--accent); }
   .masthead-right { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; text-align: right; color: var(--muted); line-height: 1.8; }
   .masthead-right .live-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--positive); margin-right: 6px; animation: pulse 2s infinite; }
@@ -67,7 +72,7 @@
   .preset-btn:hover { background: var(--ink); color: var(--paper); }
   .preset-btn.active { background: var(--accent); color: var(--paper); border-color: var(--accent); }
   .preset-btn-b:hover { background: var(--ink); color: var(--paper); }
-  .preset-btn-b.active { background: #2d5f8a; color: var(--paper); border-color: #2d5f8a; }
+  .preset-btn-b.active { background: #ff6500; color: var(--paper); border-color: #ff6500; }
   .date-range-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
   .date-mini-label { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 0.25rem; }
   input[type="month"] { width: 100%; background: var(--paper-2); border: 1px solid var(--rule); padding: 0.5rem 0.6rem; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--ink); border-radius: 0; }
@@ -85,7 +90,7 @@
   /* Period tags */
   .period-tag { display: inline-block; padding: 0.1rem 0.4rem; font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; border: 1px solid currentColor; }
   .period-tag.a { color: var(--accent); }
-  .period-tag.b { color: #2d5f8a; }
+  .period-tag.b { color: #ff6500; }
   .period-tag.delta { color: var(--ink); }
 
   /* Compare panel */
@@ -93,13 +98,13 @@
   @media (max-width: 700px) { .compare-grid { grid-template-columns: 1fr; gap: 0.75rem; } }
   .compare-card { padding: 1rem; background: var(--paper-2); border-top: 3px solid var(--rule); display: flex; flex-direction: column; gap: 0.35rem; }
   .compare-card.a { border-top-color: var(--accent); }
-  .compare-card.b { border-top-color: #2d5f8a; }
+  .compare-card.b { border-top-color: #ff6500; }
   .compare-card.delta { border-top-color: var(--ink); background: var(--ink); color: var(--paper); }
   .compare-card-tag { margin-bottom: 0.25rem; }
   .compare-card.delta .period-tag { color: var(--accent-soft); }
   .compare-card-range { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
   .compare-card.delta .compare-card-range { color: var(--accent-soft); }
-  .compare-card-value { font-family: 'Fraunces', serif; font-size: 2.4rem; font-weight: 500; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .compare-card-value { font-family: var(--font); font-size: 2.4rem; font-weight: 500; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
   .compare-card-value .unit { font-size: 1rem; color: var(--muted); margin-left: 0.2rem; }
   .compare-card.delta .compare-card-value .unit { color: var(--accent-soft); }
   .compare-card-meta { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--muted); }
@@ -126,9 +131,9 @@
   .hero-stat + .hero-stat { border-left: 1px solid rgba(244, 241, 234, 0.15); padding-left: 2rem; }
   @media (max-width: 900px) { .hero-stat + .hero-stat { border-left: none; border-top: 1px solid rgba(244, 241, 234, 0.15); padding-left: 0; padding-top: 1.5rem; } }
   .hero-stat-label { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--accent-soft); }
-  .hero-stat-value { font-family: 'Fraunces', serif; font-size: 3.5rem; font-weight: 500; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+  .hero-stat-value { font-family: var(--font); font-size: 3.5rem; font-weight: 500; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
   .hero-stat-value .unit { font-size: 1.5rem; color: var(--accent-soft); margin-left: 0.25rem; }
-  .hero-stat-context { font-family: 'Inter Tight', sans-serif; font-size: 0.85rem; color: rgba(244, 241, 234, 0.7); margin-top: 0.25rem; }
+  .hero-stat-context { font-family: var(--font); font-size: 0.85rem; color: rgba(244, 241, 234, 0.7); margin-top: 0.25rem; }
   .hero-stat.headline .hero-stat-value { color: var(--paper); }
   .hero-stat.critical .hero-stat-value { color: var(--accent-soft); }
 
@@ -168,7 +173,7 @@
   .data-banner.demo { background: rgba(184, 52, 30, 0.08); border-color: var(--accent); color: var(--accent); }
 </style>
 </head>
-<body>
+<body class="tool-light">
 
 <header class="masthead">
   <div class="masthead-left">
@@ -785,19 +790,19 @@ function renderChart() {
     data: {
       labels,
       datasets: [
-        { label: 'Weighted cost index', data: values, borderColor: '#b8341e', backgroundColor: 'rgba(184,52,30,0.08)', fill: true, tension: 0.25, borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 4 },
-        { label: 'Your price (held flat)', data: priceLine, borderColor: '#0f0f0e', borderDash: [4, 4], borderWidth: 1.5, pointRadius: 0, fill: false }
+        { label: 'Weighted cost index', data: values, borderColor: '#2f9bff', backgroundColor: 'rgba(184,52,30,0.08)', fill: true, tension: 0.25, borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 4 },
+        { label: 'Your price (held flat)', data: priceLine, borderColor: '#1f2430', borderDash: [4, 4], borderWidth: 1.5, pointRadius: 0, fill: false }
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'top', align: 'end', labels: { font: { family: 'JetBrains Mono', size: 11 }, color: '#0f0f0e', boxWidth: 14, boxHeight: 2 } },
-        tooltip: { backgroundColor: '#0f0f0e', titleFont: { family: 'JetBrains Mono', size: 11 }, bodyFont: { family: 'JetBrains Mono', size: 11 }, callbacks: { label: (ctx) => ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) } }
+        legend: { position: 'top', align: 'end', labels: { font: { family: 'JetBrains Mono', size: 11 }, color: '#1f2430', boxWidth: 14, boxHeight: 2 } },
+        tooltip: { backgroundColor: '#1f2430', titleFont: { family: 'JetBrains Mono', size: 11 }, bodyFont: { family: 'JetBrains Mono', size: 11 }, callbacks: { label: (ctx) => ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) } }
       },
       scales: {
-        x: { grid: { color: 'rgba(15,15,14,0.05)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#6b6660' } },
-        y: { grid: { color: 'rgba(15,15,14,0.08)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#6b6660' } }
+        x: { grid: { color: 'rgba(31,36,48,0.05)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#5b6472' } },
+        y: { grid: { color: 'rgba(31,36,48,0.08)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#5b6472' } }
       }
     }
   });
