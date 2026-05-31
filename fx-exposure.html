@@ -620,7 +620,12 @@ function impliedHedgeCost(ccy) {
   const rep = RATES.rates[state.reportingCcy];
   const f = RATES.rates[ccy];
   if (rep == null || f == null) return 1.5; // unknown rate → neutral default
-  let v = rep - f;
+  // Carry direction depends on net position in this currency:
+  //   net long (receivable, sold forward) earns the rate gap; net short (payable, bought forward) pays it.
+  const revW = state.revenue.find(r => r[0] === ccy)?.[1] || 0;
+  const costW = state.costs.find(c => c[0] === ccy)?.[1] || 0;
+  const dir = (revW - costW) > 0 ? -1 : 1;
+  let v = dir * (rep - f);
   v = Math.max(-50, Math.min(50, v));        // keep inside slider bounds
   return Math.round(v * 2) / 2;              // round to 0.5 step
 }
@@ -1246,7 +1251,7 @@ function renderHedge() {
   const srcLabel = RATES.source === 'live'
     ? `live policy rates (as of ${RATES.asOf || '—'})`
     : `built-in policy rates (${RATES.asOf}, editable in source)`;
-  rateNote.innerHTML = `Hedge cost is pre-filled from interest-rate parity: <strong>${state.reportingCcy} rate − currency rate</strong>, using ${srcLabel}. `
+  rateNote.innerHTML = `Hedge cost is pre-filled from covered interest-rate parity <strong>and the direction of your exposure</strong> (net long = you earn the rate gap selling forward; net short = you pay it), using ${srcLabel}. `
     + `Positive = hedging costs you; negative = hedging pays you. `
     + `Approx — reflects rate differentials, not live bank forward points. Drag any slider to override.`;
   wrap.appendChild(rateNote);
