@@ -1500,9 +1500,43 @@ async function loadRates() {
   }
 }
 
+// ---- Shareable scenarios via URL params ----
+// e.g. ?rep=EUR&rev=EUR:65,USD:25,GBP:10&cost=TRY:60,EUR:25,USD:15&size=50&gm=42&hedge=TRY:80:18,USD:50:1.5
+function applyScenarioFromURL() {
+  const q = new URLSearchParams(location.search);
+  if (![...q.keys()].length) return false;
+  const pairs = (s) => s.split(',').map(p => p.split(':')).filter(a => a[0])
+    .map(([c, w]) => [c.toUpperCase().trim(), parseFloat(w) || 0]);
+  let touched = false;
+  if (q.get('rep'))  { state.reportingCcy = q.get('rep').toUpperCase().trim(); touched = true; }
+  if (q.get('rev'))  { state.revenue = pairs(q.get('rev')); touched = true; }
+  if (q.get('cost')) { state.costs = pairs(q.get('cost')); touched = true; }
+  if (q.get('size')) { const v = parseFloat(q.get('size')); if (!isNaN(v)) state.revSize = v; touched = true; }
+  if (q.get('gm'))   { const v = parseFloat(q.get('gm')); if (!isNaN(v)) state.grossMargin = v; touched = true; }
+  if (q.get('hedge')) {
+    state.hedges = {};
+    q.get('hedge').split(',').forEach(h => {
+      const [c, r, cost] = h.split(':');
+      if (c) state.hedges[c.toUpperCase().trim()] = {
+        ratio: Math.max(0, Math.min(100, parseFloat(r) || 0)),
+        cost: parseFloat(cost) || 0, costTouched: true };
+    });
+    touched = true;
+  }
+  if (!touched) return false;
+  state.activeTemplate = null;
+  const rep = document.getElementById('reportingCcy'); if (rep) rep.value = state.reportingCcy;
+  const rs = document.getElementById('revSize'); if (rs) rs.value = state.revSize;
+  const gm = document.getElementById('grossMargin'); if (gm) gm.value = state.grossMargin;
+  const gd = document.getElementById('gmDisplay'); if (gd) gd.textContent = state.grossMargin + '%';
+  renderAll();
+  return true;
+}
+
 (async function init() {
   await Promise.all([loadLiveFx(), loadRates()]);
   loadTemplate(0); // Default: Turkish exporter to EU (primary use case)
+  applyScenarioFromURL();
 })();
 </script>
 </body>
