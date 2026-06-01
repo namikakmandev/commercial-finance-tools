@@ -209,6 +209,10 @@
   .hedge-impact { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
   .hedge-impact.pos { color: var(--positive); }
   .hedge-impact.neg { color: var(--accent); }
+  .hedge-abs { font-size: 0.6rem; font-weight: 600; margin-top: 2px; letter-spacing: 0.02em; }
+  .hedge-abs.gain { color: var(--positive); }
+  .hedge-abs.cost { color: var(--accent); }
+  .hedge-abs.zero { color: var(--muted); }
 
   .chart-wrap { height: 260px; margin-top: 0.5rem; position: relative; }
 
@@ -1200,6 +1204,9 @@ function renderHedge() {
   header.innerHTML = '<div>CCY</div><div>Hedge ratio</div><div>Ratio</div><div>Hedge cost (ann %)</div><div>Cost</div><div>Net impact</div>';
   wrap.appendChild(header);
 
+  const rep = state.reportingCcy;
+  let totalHedgePnLM = 0; // sum of per-currency annual hedge cost/gain, reporting-ccy millions
+
   ccys.forEach(c => {
     // Create the hedge entry on first sight, pre-filling cost from interest-rate parity.
     if (!state.hedges[c]) state.hedges[c] = { ratio: 0, cost: impliedHedgeCost(c), costTouched: false };
@@ -1221,6 +1228,19 @@ function renderHedge() {
     const gm = state.grossMargin / 100;
     const netImpactPct = (revW * blendedMove) - ((1 - gm) * costW * blendedMove);
 
+    // Absolute annual hedge cost/gain, in the reporting currency.
+    // Net exposure in this currency (signed, reporting-ccy millions): receivables minus payables.
+    const netExpM = state.revSize * revW - state.revSize * (1 - gm) * costW;
+    const hedgedNotionalM = Math.abs(netExpM) * (h.ratio / 100);
+    // h.cost: + = costs you, − = pays you. Money P&L is the opposite sign of the cost on the hedged notional.
+    const annualPnLM = -(h.cost / 100) * hedgedNotionalM; // + = gain, − = cost
+    totalHedgePnLM += annualPnLM;
+    let absCls = 'zero', absTxt = '—';
+    if (hedgedNotionalM > 0 && Math.abs(annualPnLM) >= 0.0005) {
+      absCls = annualPnLM >= 0 ? 'gain' : 'cost';
+      absTxt = `${fmtAbs(annualPnLM)} ${rep}/yr`;
+    }
+
     const row = document.createElement('div');
     row.className = 'hedge-row';
     row.innerHTML = `
@@ -1228,7 +1248,7 @@ function renderHedge() {
       <div><input type="range" min="0" max="100" step="5" value="${h.ratio}" data-ccy="${c}" data-field="ratio" /></div>
       <div class="hedge-val">${h.ratio}%</div>
       <div><input type="range" min="-50" max="50" step="0.5" value="${h.cost}" data-ccy="${c}" data-field="cost" class="cost" /></div>
-      <div class="hedge-val">${h.cost.toFixed(1)}%</div>
+      <div class="hedge-val">${h.cost.toFixed(1)}%<div class="hedge-abs ${absCls}">${absTxt}</div></div>
       <div class="hedge-impact ${netImpactPct >= 0 ? 'pos' : 'neg'}">${fmtPct(netImpactPct)}%</div>
     `;
     row.querySelectorAll('input[type="range"]').forEach(inp => {
@@ -1255,6 +1275,18 @@ function renderHedge() {
     + `Positive = hedging costs you; negative = hedging pays you. `
     + `Approx — reflects rate differentials, not live bank forward points. Drag any slider to override.`;
   wrap.appendChild(rateNote);
+
+  // Absolute total: what the hedge costs/earns per year, in money, at the current ratios.
+  const totalNote = document.createElement('p');
+  totalNote.className = 'note';
+  totalNote.style.marginTop = '0.4rem';
+  const totalCls = Math.abs(totalHedgePnLM) < 0.0005 ? 'zero' : (totalHedgePnLM >= 0 ? 'gain' : 'cost');
+  const totalTxt = totalCls === 'zero' ? `0 ${rep}/yr` : `${fmtAbs(totalHedgePnLM)} ${rep}/yr`;
+  totalNote.innerHTML = `<strong>In money terms</strong> — at the ratios above, hedging is worth `
+    + `<span class="hedge-abs ${totalCls}" style="font-size:0.72rem">${totalTxt}</span> on your ${state.revSize}M ${rep} book `
+    + `(applied to net exposure per currency). Positive = the hedge earns you money; negative = it costs you. `
+    + `Shown in your reporting currency — set Reporting Currency to TRY to read it in lira.`;
+  wrap.appendChild(totalNote);
 
   // Aggregate: compute both unhedged and hedged monthly margin paths over window
   const { from, to } = resolveRange('A');
