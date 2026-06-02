@@ -512,6 +512,27 @@
   <div>Sources (production): frankfurter.app (ECB) · FRED · TCMB EVDS</div>
 </footer>
 
+<!-- ============================================================
+     FLOATING AI ASSISTANT  (FX Advisor)
+     Reuses the shared Anthropic proxy (Cloudflare Worker).
+     ============================================================ -->
+<button id="aiFab" type="button" aria-label="FX Advisor" title="Ask the FX Advisor"
+  style="position:fixed;right:22px;bottom:22px;z-index:8000;width:54px;height:54px;border:1px solid var(--ink);cursor:pointer;background:var(--accent);color:#fff;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;box-shadow:0 8px 24px rgba(47,155,255,.4)">AI</button>
+<div id="aiChat"
+  style="position:fixed;right:22px;bottom:88px;z-index:8000;width:min(390px,calc(100vw - 32px));height:min(540px,72vh);background:var(--paper);border:1px solid var(--ink);box-shadow:0 18px 50px rgba(0,0,0,.28);display:none;flex-direction:column;overflow:hidden">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--ink);color:var(--paper)">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.15em">✦ FX Advisor</div>
+    <button id="aiChatClose" type="button" style="background:0;border:0;color:var(--paper);font-size:20px;cursor:pointer;line-height:1;opacity:.7">&times;</button>
+  </div>
+  <div id="aiChatMsgs" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;font-size:13.5px;line-height:1.55;background:var(--paper-2)"></div>
+  <div style="display:flex;gap:8px;padding:10px;border-top:1px solid var(--rule);background:var(--paper)">
+    <input id="aiChatInput" placeholder="Ask about your exposure…" autocomplete="off"
+      style="flex:1;min-width:0;padding:10px 12px;border:1px solid var(--rule);font-family:var(--font);font-size:14px;background:var(--paper-2);color:var(--ink);border-radius:0">
+    <button id="aiChatSend" type="button"
+      style="padding:9px 14px;border:1px solid var(--ink);background:var(--accent);color:#fff;font-family:'JetBrains Mono',monospace;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;cursor:pointer">Send</button>
+  </div>
+</div>
+
 <script>
 // ============================================================
 // CURRENCIES & DEMO FX DATA
@@ -1574,6 +1595,109 @@ function applyScenarioFromURL() {
   await Promise.all([loadLiveFx(), loadRates()]);
   loadTemplate(0); // Default: Turkish exporter to EU (primary use case)
   applyScenarioFromURL();
+})();
+
+// ============================================================
+// AI ADVISOR  — shared Anthropic proxy (same Worker as ASSETIX)
+// ============================================================
+const AI_PROXY_URL = "https://assetix-ai.akmannamik83.workers.dev";
+const AI_SYSTEM = "You are an experienced, level-headed corporate treasury / FX-risk advisor speaking to a finance manager using an FX Exposure Simulator. Be balanced and cautious: do NOT give definitive orders ('you must hedge', 'definitely sell') — instead weigh options and use measured language ('worth considering', 'you may want to review'). Briefly remind the user, where relevant, that factors NOT in these numbers (contract pricing power, hedging line availability and credit terms, cash-flow timing, tax, the firm's overall risk appetite) can change the right call. If the user asks HOW a number is computed or where the DATA comes from, use the 'METHOD & SOURCES' block to answer accurately. Do NOT invent details you were not given; if unsure, say 'I don't have that here'. Keep answers short, clear, and in English. This is analysis, not formal financial advice.";
+
+async function askAI(prompt, system) {
+  try {
+    const r = await fetch(AI_PROXY_URL, { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ prompt, system }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return { error: (j.error || ("AI error (" + r.status + ")")) + (j.detail ? ' — ' + j.detail : '') };
+    return { text: j.text || "" };
+  } catch (e) { return { error: "Connection error — could not reach the AI service." }; }
+}
+
+function aiContext() {
+  const rep = state.reportingCcy;
+  const r = realizedImpact('A');
+  const range = resolveRange('A');
+  const period = `${idxToYm(range.from)} → ${idxToYm(range.to)} (${range.months} mo)`;
+  const tpl = (state.activeTemplate != null && TEMPLATES[state.activeTemplate]) ? TEMPLATES[state.activeTemplate].name : 'custom mix';
+  const mix = arr => arr.map(([c, w]) => `${c} ${w}%`).join(', ') || '—';
+  const newGm = (state.grossMargin + r.marginBps / 100).toFixed(1);
+
+  // Top realized drivers (by absolute margin contribution)
+  const drivers = r.decomp.slice(0, 4).map(d =>
+    `${d.ccy}: moved ${d.move >= 0 ? '+' : ''}${d.move.toFixed(1)}% vs ${rep}, net exposure ${((d.revW - d.costW) * 100).toFixed(0)}pts → ${d.impact >= 0 ? '+' : ''}${Math.round(d.impact * 100)} bps`).join('\n');
+
+  // Stress shocks, if any
+  const shockKeys = Object.keys(state.shocks).filter(c => state.shocks[c]);
+  let scen = 'No what-if shocks applied.';
+  if (shockKeys.length) {
+    const s = scenarioImpact();
+    scen = `Applied shocks: ${shockKeys.map(c => `${c} ${state.shocks[c] >= 0 ? '+' : ''}${state.shocks[c]}%`).join(', ')}. `
+      + `Hypothetical margin impact ${s.marginBps >= 0 ? '+' : ''}${Math.round(s.marginBps)} bps; gross-profit impact ≈ ${s.grossProfitAbsM >= 0 ? '+' : ''}${s.grossProfitAbsM.toFixed(1)} (units of revenue base = ${state.revSize}).`;
+  }
+
+  // Hedges, if any
+  const hedgeKeys = Object.keys(state.hedges).filter(c => state.hedges[c] && state.hedges[c].ratio);
+  const hedges = hedgeKeys.length
+    ? hedgeKeys.map(c => `${c}: ${state.hedges[c].ratio}% hedged @ ~${state.hedges[c].cost}%/yr cost`).join(', ')
+    : 'No hedges set.';
+
+  return `OPEN TOOL: FX Exposure Simulator. Reporting currency: ${rep}. Profile: ${tpl}.\n`
+    + `REVENUE MIX: ${mix(state.revenue)}.\n`
+    + `COST MIX: ${mix(state.costs)}.\n`
+    + `Revenue base: ${state.revSize} (${rep}, indicative units) · Gross-margin baseline: ${state.grossMargin}%.\n`
+    + `REALIZED OVER WINDOW ${period}: revenue FX impact ${fmtPct(r.revImpact)}% · cost FX impact ${fmtPct(r.costImpact)}% · gross margin moves ${r.marginBps >= 0 ? '+' : ''}${Math.round(r.marginBps)} bps (to ${newGm}%).\n`
+    + `TOP REALIZED DRIVERS (net exposure × FX move):\n${drivers || '—'}\n`
+    + `WHAT-IF SCENARIO: ${scen}\n`
+    + `HEDGING: ${hedges}\n`
+    + `DATA MODE: ${DATA_MODE === 'live' ? 'live rates' : 'demo (synthetic) rates'}${DATA_LAST_UPDATED ? ' · as of ' + DATA_LAST_UPDATED : ''}.\n`
+    + `\nMETHOD & SOURCES — how EVERY number in this tool is computed (use this to answer accurately; do not invent beyond it):\n`
+    + `1. FX MOVE per currency = % change of that currency's price expressed in the reporting currency, from the window's start month to its end month: (rate_end − rate_start) / rate_start. USD/EUR etc. are stored vs USD and cross-converted to the reporting currency.\n`
+    + `2. REVENUE FX IMPACT = Σ (revenue mix weight × that currency's move). COST FX IMPACT = Σ (cost mix weight × move). A POSITIVE cost impact means costs rose in reporting-currency terms (a headwind); a negative cost impact is a tailwind.\n`
+    + `3. GROSS-MARGIN CHANGE (bps): gm = baseline gross margin. revFactor = 1 + revImpact/100, costFactor = 1 + costImpact/100. newMargin = (revFactor − (1−gm)·costFactor) / revFactor. Change in bps = (newMargin − gm) × 10,000.\n`
+    + `4. NET EXPOSURE per currency = revenue weight − cost weight. A currency earned and spent in equal proportion is naturally hedged and contributes ~0. The per-currency DECOMPOSITION (its share of the margin move) = ((1−gm)/revFactor) × (revW − costW) × move; these sum to the headline margin change.\n`
+    + `5. WHAT-IF / STRESS: applies the user's manual % shocks to each currency (hypothetical, NOT historical). Same margin formula as (3). Absolute figures on a revenue base of ${state.revSize} ${rep}: revenue change = base × revImpact/100; cost change = base × (1−gm) × costImpact/100; gross-profit change = revenue change − cost change.\n`
+    + `6. VOLATILITY (per pair) = standard deviation of monthly returns over the window × √12, shown as an annualized %. The "consider hedging" hint fires when annualized vol > ~10% AND |net exposure| > ~0.1.\n`
+    + `7. HEDGING: for the hedged share of a currency, the rate is locked at the window's start, minus the annualized hedge cost pro-rated by months elapsed (cost × monthsElapsed/12); the unhedged share takes the full FX move. Blended move = ratio × (locked) + (1−ratio) × (unhedged). "Hedged vs unhedged" compares end-of-window margin (bps) for each path; VOLATILITY REDUCTION = how much the std-dev of month-over-month margin changes shrinks (unhVol − hedVol)/unhVol. If hedge cost exceeds the volatility saved, reduction can go negative.\n`
+    + `8. IMPLIED HEDGE COST (the pre-filled default): covered interest-rate parity — reporting-ccy interest rate − foreign-ccy rate, signed by net position (a net receivable/long sold forward EARNS the rate gap; a net payable/short bought forward PAYS it). The user can override the slider.\n`
+    + `9. COMPARE MODE (Period A vs B): runs the same realized calculation (1–3) on two separate windows and reports the difference in margin bps.\n`
+    + `10. CHART: each foreign currency's price in the reporting currency, indexed to 100 at the window start; a line rising = that currency strengthening vs yours.\n`
+    + `DATA: live FX from frankfurter.app (ECB); interest rates from FRED (majors) + TCMB EVDS (TRY), refreshed by a scheduled job into rates.json. Demo mode = synthetic but plausible 36-month series. This is a planning simulator with indicative figures, not an accounting P&L.`;
+}
+
+(function () {
+  const fab = document.getElementById('aiFab'), panel = document.getElementById('aiChat'),
+    msgs = document.getElementById('aiChatMsgs'), input = document.getElementById('aiChatInput'),
+    sendBtn = document.getElementById('aiChatSend'), closeBtn = document.getElementById('aiChatClose');
+  if (!fab || !panel) return;
+  const history = []; let greeted = false;
+  function bubble(role, text) {
+    const me = role === 'user', w = document.createElement('div');
+    w.style.cssText = 'max-width:86%;padding:9px 12px;white-space:pre-wrap;border:1px solid var(--rule);' +
+      (me ? 'align-self:flex-end;background:var(--accent);color:#fff;border-color:var(--accent)'
+          : 'align-self:flex-start;background:var(--paper);color:var(--ink)');
+    w.textContent = text; msgs.appendChild(w); msgs.scrollTop = msgs.scrollHeight; return w;
+  }
+  function openPanel() {
+    panel.style.display = 'flex';
+    if (!greeted) { greeted = true; bubble('ai', 'Hi — ask me about your FX exposure. e.g. “Which currency is hurting my margin most?”, “Should I hedge TRY?”, or “How is the margin impact calculated?”'); }
+    setTimeout(() => input.focus(), 50);
+  }
+  function closePanel() { panel.style.display = 'none'; }
+  fab.addEventListener('click', () => panel.style.display === 'flex' ? closePanel() : openPanel());
+  closeBtn.addEventListener('click', closePanel);
+  async function send() {
+    const q = (input.value || '').trim(); if (!q) return;
+    input.value = ''; bubble('user', q); history.push('User: ' + q);
+    const typing = bubble('ai', '…'); sendBtn.disabled = true;
+    const convo = history.slice(-6).join('\n');
+    const prompt = aiContext() + `\n\nCONVERSATION:\n${convo}\n\nAnswer the last question in the context of this exposure profile — short, clear, English.`;
+    const res = await askAI(prompt, AI_SYSTEM);
+    typing.textContent = res.error ? '⚠ ' + res.error : res.text;
+    if (!res.error) history.push('Advisor: ' + res.text);
+    sendBtn.disabled = false; setTimeout(() => input.focus(), 50);
+  }
+  sendBtn.addEventListener('click', send);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); send(); } });
 })();
 </script>
 </body>
