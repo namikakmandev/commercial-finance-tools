@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-05-29",
+  "last_updated": "2026-06-15",
   "lookback_months": 36,
   "items": [
     {
@@ -12,7 +12,6 @@
       "input_series_id": "WPU101",
       "notes": "NAICS 331110 \u2014 primary steel mfg.",
       "output": [
-        292.847,
         310.869,
         312.092,
         295.292,
@@ -47,11 +46,11 @@
         272.784,
         274.38,
         284.069,
-        289.899,
-        301.783
+        289.944,
+        299.045,
+        306.208
       ],
       "input": [
-        347.827,
         356.02,
         348.799,
         335.16,
@@ -84,10 +83,11 @@
         313.812,
         307.944,
         323.978,
-        330.668,
-        342.046,
-        347.22,
-        353.916
+        329.774,
+        340.513,
+        346.649,
+        352.299,
+        357.108
       ]
     },
     {
@@ -100,7 +100,6 @@
       "input_series_id": "WPU0613",
       "notes": "NAICS 325412 \u2014 pharmaceutical preparations.",
       "output": [
-        894.581,
         893.782,
         893.999,
         897.325,
@@ -133,13 +132,13 @@
         918.59,
         919.466,
         919.298,
-        924.065,
-        926.03,
-        925.953,
-        926.937
+        924.159,
+        926.123,
+        926.047,
+        926.55,
+        927.623
       ],
       "input": [
-        388.578,
         382.553,
         377.951,
         364.428,
@@ -172,10 +171,11 @@
         357.464,
         359.389,
         359.714,
-        362.547,
-        365.723,
-        367.578,
-        371.677
+        362.549,
+        365.725,
+        367.591,
+        370.961,
+        376.905
       ]
     },
     {
@@ -188,7 +188,6 @@
       "input_series_id": "WPU0613",
       "notes": "NAICS 325413 \u2014 diagnostic substances.",
       "output": [
-        288.186,
         286.591,
         286.297,
         285.543,
@@ -223,11 +222,11 @@
         300.519,
         305.032,
         303.964,
-        303.969,
-        304.136
+        303.921,
+        303.823,
+        303.953
       ],
       "input": [
-        388.578,
         382.553,
         377.951,
         364.428,
@@ -260,10 +259,11 @@
         357.464,
         359.389,
         359.714,
-        362.547,
-        365.723,
-        367.578,
-        371.677
+        362.549,
+        365.725,
+        367.591,
+        370.961,
+        376.905
       ]
     },
     {
@@ -276,7 +276,6 @@
       "input_series_id": "WPU0613",
       "notes": "NAICS 325414 \u2014 biological products.",
       "output": [
-        253.348,
         252.746,
         252.231,
         254.676,
@@ -312,10 +311,10 @@
         266.172,
         266.33,
         266.33,
+        266.33,
         266.33
       ],
       "input": [
-        388.578,
         382.553,
         377.951,
         364.428,
@@ -348,10 +347,11 @@
         357.464,
         359.389,
         359.714,
-        362.547,
-        365.723,
-        367.578,
-        371.677
+        362.549,
+        365.725,
+        367.591,
+        370.961,
+        376.905
       ]
     }
   ],
@@ -406,35 +406,35 @@
     ],
     [
       "tr_steel",
-      "output: HTTP Error 400: Bad Request"
+      "output: <urlopen error _ssl.c:999: The handshake operation"
     ],
     [
       "tr_auto_oem",
-      "output: HTTP Error 400: Bad Request"
+      "output: <urlopen error _ssl.c:999: The handshake operation"
     ],
     [
       "tr_auto_parts",
-      "output: HTTP Error 400: Bad Request"
+      "output: <urlopen error _ssl.c:999: The handshake operation"
     ],
     [
       "tr_food_mfg",
-      "output: HTTP Error 400: Bad Request"
+      "output: <urlopen error _ssl.c:999: The handshake operation"
     ],
     [
       "tr_apparel",
-      "output: HTTP Error 400: Bad Request"
+      "output: <urlopen error _ssl.c:999: The handshake operation"
     ],
     [
       "tr_chemicals",
-      "output: HTTP Error 400: Bad Request"
+      "output: <urlopen error _ssl.c:999: The handshake operation"
     ],
     [
       "tr_construction",
-      "output: HTTP Error 400: Bad Request"
+      "output: <urlopen error _ssl.c:999: The handshake operation"
     ],
     [
       "tr_pharma",
-      "output: HTTP Error 400: Bad Request"
+      "output: <urlopen error _ssl.c:999: The handshake operation"
     ]
   ]
 }
